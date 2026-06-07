@@ -2755,10 +2755,9 @@
         // GOOGLE SHEETS API INTEGRATION
         // ============================================
         
-        // Configuration
+        // Configuration - Using Google Apps Script for secure write access
         const GOOGLE_SHEETS_CONFIG = {
-            apiKey: 'AIzaSyAut25RSBkUkJ6l13-qnS8pEGvXF0Yi-88', // Add your Google API Key here
-            spreadsheetId: '17nYNwMeXiW-MS1u_jfdfkJnZNgo8Ya_G', // Add your Google Spreadsheet ID here
+            apiUrl: 'https://script.google.com/macros/s/AKfycbzXAo0AG3UtpwDpvLNKOEq8ZbOPBAnxnKyxfOh-e-u0coCHfBum_cOgs2IFFCF1j1BaVg/exec',
             sheetsNames: {
                 students: 'Students',
                 teachers: 'Teachers',
@@ -2770,10 +2769,10 @@
         
         // Check if Google Sheets is configured
         function isGoogleSheetsConfigured() {
-            return GOOGLE_SHEETS_CONFIG.apiKey && GOOGLE_SHEETS_CONFIG.spreadsheetId;
+            return GOOGLE_SHEETS_CONFIG.apiUrl && GOOGLE_SHEETS_CONFIG.apiUrl.includes('script.google.com');
         }
         
-        // Sync data to Google Sheets
+        // Sync data to Google Sheets via Apps Script
         async function syncToGoogleSheets(sheetName, data) {
             if (!isGoogleSheetsConfigured()) {
                 console.log('Google Sheets not configured, using localStorage only');
@@ -2781,23 +2780,16 @@
             }
             
             try {
-                // Convert data to 2D array for Google Sheets
-                const values = Array.isArray(data) ? 
-                    [Object.keys(data[0] || {}), ...data.map(item => Object.values(item))] :
-                    [[JSON.stringify(data)]];
-                
-                const response = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_CONFIG.apiKey}`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ values })
-                    }
-                );
-                
-                if (!response.ok) {
-                    throw new Error('Failed to sync to Google Sheets');
-                }
+                const response = await fetch(GOOGLE_SHEETS_CONFIG.apiUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'write',
+                        sheetName: sheetName,
+                        records: data
+                    })
+                });
                 
                 console.log(`Synced to Google Sheets: ${sheetName}`);
             } catch (error) {
@@ -2806,34 +2798,29 @@
             }
         }
         
-        // Load data from Google Sheets
+        // Load data from Google Sheets via Apps Script
         async function loadFromGoogleSheets(sheetName) {
             if (!isGoogleSheetsConfigured()) {
                 return null;
             }
             
             try {
-                const response = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.spreadsheetId}/values/${sheetName}?key=${GOOGLE_SHEETS_CONFIG.apiKey}`
-                );
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load from Google Sheets');
-                }
+                const response = await fetch(GOOGLE_SHEETS_CONFIG.apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'read',
+                        sheetName: sheetName
+                    })
+                });
                 
                 const result = await response.json();
-                const rows = result.values || [];
                 
-                if (rows.length < 2) return [];
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load');
+                }
                 
-                const headers = rows[0];
-                return rows.slice(1).map(row => {
-                    const obj = {};
-                    headers.forEach((header, index) => {
-                        obj[header] = row[index] || '';
-                    });
-                    return obj;
-                });
+                return result.data || [];
             } catch (error) {
                 console.error('Google Sheets load error:', error);
                 return null;
