@@ -1,0 +1,2869 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="Logo.jpg">
+    <title>ज्ञानसिंधू क्लासेस - व्यवस्थापन पॅनेल</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* SECURITY NOTE: This is a client-side only app intended for internal use on a private URL.
+           Password storage in localStorage is NOT suitable for public-facing production environments.
+           This implementation is for demonstration/internal use only. */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+            background: #0a0a1a;
+            color: #fff;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        #starCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .gold-accent {
+            color: #f5c518;
+        }
+        
+        .gold-bg {
+            background: #f5c518;
+            color: #0a0a1a;
+        }
+        
+        .btn-gold {
+            background: #f5c518;
+            color: #0a0a1a;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 44px; /* Touch-friendly minimum */
+        }
+        
+        .btn-gold:hover {
+            background: #d4a817;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 197, 24, 0.4);
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            width: 250px;
+            background: rgba(10, 10, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-item {
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-item:hover {
+            background: rgba(245, 197, 24, 0.1);
+            border-left-color: #f5c518;
+        }
+        
+        .sidebar-item.active {
+            background: rgba(245, 197, 24, 0.2);
+            border-left-color: #f5c518;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+        
+        .main-content.full {
+            margin-left: 0;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            width: 90%;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 3000;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(245, 197, 24, 0.3);
+        }
+        
+        input, select, textarea {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: white;
+            width: 100%;
+            margin-top: 8px;
+            font-size: 16px; /* Prevents zoom on iOS */
+            min-height: 44px; /* Touch-friendly */
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #f5c518;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        th {
+            background: rgba(245, 197, 24, 0.1);
+            color: #f5c518;
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .logo-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #f5c518;
+        }
+        
+        .role-tab {
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .role-tab.active {
+            background: #f5c518;
+            color: #0a0a1a;
+            border-color: #f5c518;
+        }
+        
+        .role-tab:hover {
+            border-color: #f5c518;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .modal-content {
+                padding: 20px;
+                width: 95%;
+                max-height: 85vh;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+            }
+            
+            .logo-circle {
+                width: 80px;
+                height: 80px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .role-tab {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-paid {
+            background: #10b981;
+            color: white;
+        }
+        
+        .badge-partial {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .badge-pending {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="starCanvas"></canvas>
+    
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="flex items-center justify-center min-h-screen p-4">
+        <div class="glass-card p-8 max-w-md w-full">
+            <div class="text-center mb-6">
+                <img src="Logo.jpg" alt="Logo" class="logo-circle mx-auto mb-4">
+                <h1 class="text-3xl font-bold gold-accent mb-2">ज्ञानसिंधू क्लासेस</h1>
+                <p class="text-gray-300">व्यवस्थापन पॅनेल</p>
+            </div>
+            
+            <div class="flex gap-2 mb-6">
+                <div class="role-tab active flex-1 text-center" data-role="admin">
+                    👑 Admin
+                </div>
+                <div class="role-tab flex-1 text-center" data-role="teacher">
+                    👩‍🏫 Teacher
+                </div>
+                <div class="role-tab flex-1 text-center" data-role="student">
+                    👨‍🎓 Student
+                </div>
+            </div>
+            
+            <form id="loginForm">
+                <div id="usernameField" class="mb-4 hidden">
+                    <label class="block text-sm mb-1">Username</label>
+                    <input type="text" id="loginUsername" placeholder="Enter username">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm mb-1">Password</label>
+                    <div class="relative">
+                        <input type="password" id="loginPassword" placeholder="Enter password">
+                        <button type="button" id="togglePassword" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="loginError" class="text-red-500 text-sm mb-4 hidden"></div>
+                
+                <button type="submit" class="btn-gold w-full mb-4">
+                    लॉगिन करा
+                </button>
+                
+                <a href="index.html" class="block text-center text-gray-400 hover:text-gold-accent transition">
+                    <i class="fas fa-arrow-left mr-2"></i>मुख्य पृष्ठावर परत जा
+                </a>
+            </form>
+        </div>
+    </div>
+    
+    <!-- SIDEBAR -->
+    <div id="sidebar" class="sidebar hidden">
+        <div class="p-6 border-b border-gray-700">
+            <h2 class="text-xl font-bold gold-accent">ज्ञानसिंधू क्लासेस</h2>
+            <p class="text-sm text-gray-400" id="sidebarRole"></p>
+        </div>
+        
+        <div id="sidebarNav"></div>
+        
+        <div class="p-4 border-t border-gray-700 mt-auto">
+            <button id="logoutBtn" class="btn-gold w-full">
+                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+            </button>
+        </div>
+    </div>
+    
+    <!-- MAIN CONTENT AREA -->
+    <div id="mainContent" class="main-content hidden">
+        <div class="flex justify-between items-center mb-6">
+            <button id="menuToggle" class="text-2xl gold-accent md:hidden">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h1 id="pageTitle" class="text-3xl font-bold gold-accent"></h1>
+            <div></div>
+        </div>
+        
+        <!-- Google Sheets Setup Notice -->
+        <div id="setupNotice" class="hidden mb-6 glass-card p-4 border-l-4 border-yellow-500">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-yellow-500 mt-1 mr-3"></i>
+                <div>
+                    <h4 class="font-bold mb-2">Google Sheets Not Configured</h4>
+                    <p class="text-sm text-gray-300 mb-2">
+                        Data is currently stored in browser localStorage only. 
+                        To enable cloud sync with Google Sheets, see GOOGLE_SHEETS_SETUP.md
+                    </p>
+                    <button onclick="document.getElementById('setupNotice').classList.add('hidden')" 
+                        class="text-sm text-yellow-400 hover:text-yellow-300">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="contentArea"></div>
+    </div>
+    
+    <!-- MODALS (will be created dynamically) -->
+    <div id="modalContainer"></div>
+
+    <script>
+        // ============================================
+        // GLOBAL STATE & UTILITIES
+        // ============================================
+        
+        let currentSession = null;
+        let currentPage = 'dashboard';
+        let selectedRole = 'admin';
+        
+        function uuid() {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        }
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function logActivity(action) {
+            const activities = JSON.parse(localStorage.getItem('gs_activity') || '[]');
+            activities.unshift({ action, time: new Date().toISOString() });
+            if (activities.length > 100) activities.pop();
+            localStorage.setItem('gs_activity', JSON.stringify(activities));
+        }
+        
+        // ============================================
+        // STAR CANVAS ANIMATION
+        // ============================================
+        
+        const canvas = document.getElementById('starCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const stars = [];
+        for (let i = 0; i < 120; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                radius: Math.random() * 1.5 + 0.5
+            });
+        }
+        
+        function drawStars() {
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw connections
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < stars.length; i++) {
+                for (let j = i + 1; j < stars.length; j++) {
+                    const dx = stars[i].x - stars[j].x;
+                    const dy = stars[i].y - stars[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(stars[i].x, stars[i].y);
+                        ctx.lineTo(stars[j].x, stars[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            // Draw stars
+            ctx.fillStyle = 'white';
+            stars.forEach(star => {
+                star.x += star.vx;
+                star.y += star.vy;
+                if (star.x < 0 || star.x > canvas.width) star.vx *= -1;
+                if (star.y < 0 || star.y > canvas.height) star.vy *= -1;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            requestAnimationFrame(drawStars);
+        }
+        
+        drawStars();
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // ============================================
+        // INITIALIZE SAMPLE DATA
+        // ============================================
+        
+        function initializeData() {
+            if (!localStorage.getItem('gs_admin')) {
+                localStorage.setItem('gs_admin', JSON.stringify({ username: 'admin', password: 'Capital@123' }));
+            }
+            
+            if (!localStorage.getItem('gs_students')) {
+                const sampleStudents = [
+                    { id:'s1', username:'anand', password:'Anand@123', name:'आनंद पाटील', fatherName:'रामचंद्र पाटील', phone:'9876543210', whatsapp:'9876543210', class:'10', stream:'NA', address:'नेरळ', admDate:'2024-06-01', feeAmount:8000, feePaid:8000, feeStatus:'paid', createdAt: new Date().toISOString() },
+                    { id:'s2', username:'priya', password:'Priya@123', name:'प्रिया शर्मा', fatherName:'विजय शर्मा', phone:'9823456781', whatsapp:'9823456781', class:'11-science', stream:'Science', address:'नेरळ', admDate:'2024-06-03', feeAmount:12000, feePaid:6000, feeStatus:'partial', createdAt: new Date().toISOString() },
+                    { id:'s3', username:'rohan', password:'Rohan@123', name:'रोहन देशमुख', fatherName:'सुरेश देशमुख', phone:'9012345678', whatsapp:'', class:'12-science', stream:'Science', address:'नेरळ', admDate:'2024-06-05', feeAmount:14000, feePaid:0, feeStatus:'pending', createdAt: new Date().toISOString() }
+                ];
+                localStorage.setItem('gs_students', JSON.stringify(sampleStudents));
+            }
+            
+            if (!localStorage.getItem('gs_teachers')) {
+                const sampleTeachers = [
+                    { id:'t1', username:'sunita', password:'Sunita@123', name:'सुनिता कुलकर्णी', phone:'9988776655', subject:'गणित', qualification:'M.Sc.', assignedClasses:['9','10'], joinDate:'2020-06-01', salary:18000, address:'नेरळ', createdAt: new Date().toISOString() },
+                    { id:'t2', username:'vijay', password:'Vijay@123', name:'विजय शिंदे', phone:'9977665544', subject:'विज्ञान', qualification:'B.Sc. B.Ed.', assignedClasses:['11-science','12-science'], joinDate:'2021-07-15', salary:15000, address:'कर्जत', createdAt: new Date().toISOString() }
+                ];
+                localStorage.setItem('gs_teachers', JSON.stringify(sampleTeachers));
+            }
+            
+            if (!localStorage.getItem('gs_activity')) {
+                localStorage.setItem('gs_activity', JSON.stringify([]));
+            }
+            if (!localStorage.getItem('gs_attendance')) {
+                localStorage.setItem('gs_attendance', JSON.stringify([]));
+            }
+            if (!localStorage.getItem('gs_marks')) {
+                localStorage.setItem('gs_marks', JSON.stringify([]));
+            }
+        }
+        
+        initializeData();
+        
+        // ============================================
+        // LOGIN LOGIC
+        // ============================================
+        
+        const roleTabs = document.querySelectorAll('.role-tab');
+        const usernameField = document.getElementById('usernameField');
+        const loginUsername = document.getElementById('loginUsername');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginError = document.getElementById('loginError');
+        const loginForm = document.getElementById('loginForm');
+        
+        roleTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                roleTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                selectedRole = tab.dataset.role;
+                
+                if (selectedRole === 'admin') {
+                    usernameField.classList.add('hidden');
+                } else {
+                    usernameField.classList.remove('hidden');
+                }
+            });
+        });
+        
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const type = loginPassword.type === 'password' ? 'text' : 'password';
+            loginPassword.type = type;
+            this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+        });
+        
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            loginError.classList.add('hidden');
+            
+            const password = loginPassword.value.trim();
+            const username = loginUsername.value.trim();
+            
+            if (selectedRole === 'admin') {
+                const admin = JSON.parse(localStorage.getItem('gs_admin'));
+                if (password === admin.password) {
+                    currentSession = { role: 'admin', id: 'admin', name: 'Admin' };
+                    showDashboard();
+                } else {
+                    loginError.textContent = 'Invalid password';
+                    loginError.classList.remove('hidden');
+                }
+            } else if (selectedRole === 'teacher') {
+                const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+                const teacher = teachers.find(t => t.username === username && t.password === password);
+                if (teacher) {
+                    currentSession = { role: 'teacher', id: teacher.id, name: teacher.name };
+                    showDashboard();
+                } else {
+                    loginError.textContent = 'Invalid username or password';
+                    loginError.classList.remove('hidden');
+                }
+            } else if (selectedRole === 'student') {
+                const students = JSON.parse(localStorage.getItem('gs_students'));
+                const student = students.find(s => s.username === username && s.password === password);
+                if (student) {
+                    currentSession = { role: 'student', id: student.id, name: student.name };
+                    showDashboard();
+                } else {
+                    loginError.textContent = 'Invalid username or password';
+                    loginError.classList.remove('hidden');
+                }
+            }
+        });
+        
+        // ============================================
+        // DASHBOARD DISPLAY
+        // ============================================
+        
+        function showDashboard() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            
+            // Show setup notice if Google Sheets not configured (only for admin)
+            if (!isGoogleSheetsConfigured() && currentSession.role === 'admin') {
+                document.getElementById('setupNotice').classList.remove('hidden');
+            }
+            
+            renderSidebar();
+            navigateTo('dashboard');
+        }
+        
+        function renderSidebar() {
+            const sidebarRole = document.getElementById('sidebarRole');
+            const sidebarNav = document.getElementById('sidebarNav');
+            
+            sidebarRole.textContent = currentSession.name;
+            
+            let navItems = [];
+            
+            if (currentSession.role === 'admin') {
+                navItems = [
+                    { id: 'dashboard', icon: 'home', label: 'Dashboard' },
+                    { id: 'students', icon: 'user-graduate', label: 'विद्यार्थी' },
+                    { id: 'teachers', icon: 'chalkboard-teacher', label: 'शिक्षक' },
+                    { id: 'accounts', icon: 'users', label: 'खाती व्यवस्थापन' },
+                    { id: 'attendance', icon: 'calendar-check', label: 'उपस्थिती' },
+                    { id: 'marks', icon: 'chart-bar', label: 'गुण/निकाल' },
+                    { id: 'settings', icon: 'cog', label: 'सेटिंग्ज' }
+                ];
+            } else if (currentSession.role === 'teacher') {
+                navItems = [
+                    { id: 'teacher-dashboard', icon: 'home', label: 'माझा डॅशबोर्ड' },
+                    { id: 'teacher-attendance', icon: 'calendar-check', label: 'उपस्थिती नोंदवा' },
+                    { id: 'teacher-marks', icon: 'chart-bar', label: 'गुण भरा' },
+                    { id: 'teacher-students', icon: 'eye', label: 'विद्यार्थी पहा' }
+                ];
+            } else if (currentSession.role === 'student') {
+                navItems = [
+                    { id: 'student-dashboard', icon: 'home', label: 'माझा डॅशबोर्ड' },
+                    { id: 'student-attendance', icon: 'calendar-check', label: 'माझी उपस्थिती' },
+                    { id: 'student-marks', icon: 'chart-bar', label: 'माझे गुण' },
+                    { id: 'student-fees', icon: 'money-bill', label: 'फी तपशील' }
+                ];
+            }
+            
+            sidebarNav.innerHTML = navItems.map(item => `
+                <div class="sidebar-item" data-page="${item.id}">
+                    <i class="fas fa-${item.icon} mr-3"></i>${item.label}
+                </div>
+            `).join('');
+            
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    navigateTo(item.dataset.page);
+                });
+            });
+        }
+        
+        function navigateTo(page) {
+            currentPage = page;
+            
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.page === page) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Route to correct page renderer
+            if (currentSession.role === 'admin') {
+                switch(page) {
+                    case 'dashboard': renderAdminDashboard(); break;
+                    case 'students': renderAdminStudents(); break;
+                    case 'teachers': renderAdminTeachers(); break;
+                    case 'accounts': renderAdminAccounts(); break;
+                    case 'attendance': renderAdminAttendance(); break;
+                    case 'marks': renderAdminMarks(); break;
+                    case 'settings': renderAdminSettings(); break;
+                }
+            } else if (currentSession.role === 'teacher') {
+                switch(page) {
+                    case 'teacher-dashboard': renderTeacherDashboard(); break;
+                    case 'teacher-attendance': renderTeacherAttendance(); break;
+                    case 'teacher-marks': renderTeacherMarks(); break;
+                    case 'teacher-students': renderTeacherStudents(); break;
+                }
+            } else if (currentSession.role === 'student') {
+                switch(page) {
+                    case 'student-dashboard': renderStudentDashboard(); break;
+                    case 'student-attendance': renderStudentAttendance(); break;
+                    case 'student-marks': renderStudentMarks(); break;
+                    case 'student-fees': renderStudentFees(); break;
+                }
+            }
+        }
+        
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            currentSession = null;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+            loginPassword.value = '';
+            loginUsername.value = '';
+        });
+        
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        // ============================================
+        // ADMIN: DASHBOARD
+        // ============================================
+        
+        function renderAdminDashboard() {
+            document.getElementById('pageTitle').textContent = 'Admin Dashboard';
+            
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const activities = JSON.parse(localStorage.getItem('gs_activity'));
+            
+            const totalStudents = students.length;
+            const totalTeachers = teachers.length;
+            const feesCollected = students.reduce((sum, s) => sum + s.feePaid, 0);
+            const pendingFeeStudents = students.filter(s => s.feeStatus !== 'paid').length;
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-user-graduate"></i></div>
+                        <div class="text-2xl font-bold">${totalStudents}</div>
+                        <div class="text-gray-400 text-sm">Total Students</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-chalkboard-teacher"></i></div>
+                        <div class="text-2xl font-bold">${totalTeachers}</div>
+                        <div class="text-gray-400 text-sm">Total Teachers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-rupee-sign"></i></div>
+                        <div class="text-2xl font-bold">₹${feesCollected}</div>
+                        <div class="text-gray-400 text-sm">Fees Collected</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl text-red-500 mb-2"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="text-2xl font-bold">${pendingFeeStudents}</div>
+                        <div class="text-gray-400 text-sm">Pending Fee Students</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-users"></i></div>
+                        <div class="text-2xl font-bold">${totalTeachers}</div>
+                        <div class="text-gray-400 text-sm">Teachers</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+                    <button onclick="navigateTo('students')" class="btn-gold p-4 rounded-lg">
+                        <i class="fas fa-user-plus mr-2"></i>Add Student
+                    </button>
+                    <button onclick="navigateTo('teachers')" class="btn-gold p-4 rounded-lg">
+                        <i class="fas fa-user-plus mr-2"></i>Add Teacher
+                    </button>
+                    <button onclick="navigateTo('attendance')" class="btn-gold p-4 rounded-lg">
+                        <i class="fas fa-calendar-check mr-2"></i>Mark Attendance
+                    </button>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Recent Activity</h3>
+                    <div class="space-y-2">
+                        ${activities.slice(0, 8).map(a => `
+                            <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                                <span>${a.action}</span>
+                                <span class="text-sm text-gray-400">${new Date(a.time).toLocaleString('en-IN')}</span>
+                            </div>
+                        `).join('')}
+                        ${activities.length === 0 ? '<p class="text-gray-400">No recent activity</p>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // ADMIN: STUDENTS
+        // ============================================
+        
+        function renderAdminStudents() {
+            document.getElementById('pageTitle').textContent = 'Students Management';
+            
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <button onclick="openAddStudentModal()" class="btn-gold">
+                            <i class="fas fa-plus mr-2"></i>Add Student
+                        </button>
+                        <button onclick="exportStudentsCSV()" class="btn-gold">
+                            <i class="fas fa-download mr-2"></i>Export CSV
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <input type="text" id="searchStudent" placeholder="Search by name..." 
+                            onkeyup="filterStudents()" class="w-full">
+                        <select id="filterClass" onchange="filterStudents()" class="w-full">
+                            <option value="">All Classes</option>
+                            <option value="8">Class 8</option>
+                            <option value="9">Class 9</option>
+                            <option value="10">Class 10</option>
+                            <option value="11-science">11 Science</option>
+                            <option value="11-commerce">11 Commerce</option>
+                            <option value="12-science">12 Science</option>
+                            <option value="12-commerce">12 Commerce</option>
+                        </select>
+                        <select id="filterFee" onchange="filterStudents()" class="w-full">
+                            <option value="">All Fee Status</option>
+                            <option value="paid">Paid</option>
+                            <option value="partial">Partial</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table id="studentsTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Class</th>
+                                    <th>Phone</th>
+                                    <th>Fee Status</th>
+                                    <th>Username</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            renderStudentsTable();
+        }
+        
+        function renderStudentsTable(filter = {}) {
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const tbody = document.getElementById('studentsTableBody');
+            
+            let filtered = students;
+            if (filter.search) {
+                filtered = filtered.filter(s => s.name.toLowerCase().includes(filter.search.toLowerCase()));
+            }
+            if (filter.class) {
+                filtered = filtered.filter(s => s.class === filter.class);
+            }
+            if (filter.fee) {
+                filtered = filtered.filter(s => s.feeStatus === filter.fee);
+            }
+            
+            tbody.innerHTML = filtered.map((s, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${s.name}</td>
+                    <td>${s.class}</td>
+                    <td>${s.phone}</td>
+                    <td><span class="badge badge-${s.feeStatus}">${s.feeStatus}</span></td>
+                    <td>${s.username}</td>
+                    <td>
+                        <button onclick='viewStudent("${s.id}")' class="text-blue-400 hover:text-blue-300 mr-2">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick='editStudent("${s.id}")' class="text-yellow-400 hover:text-yellow-300 mr-2">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick='deleteStudent("${s.id}")' class="text-red-400 hover:text-red-300">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function filterStudents() {
+            const search = document.getElementById('searchStudent').value;
+            const classFilter = document.getElementById('filterClass').value;
+            const feeFilter = document.getElementById('filterFee').value;
+            renderStudentsTable({ search, class: classFilter, fee: feeFilter });
+        }
+        
+        function openAddStudentModal() {
+            showModal('Add Student', `
+                <form id="studentForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label>Name *</label>
+                            <input type="text" name="name" required>
+                        </div>
+                        <div>
+                            <label>Father Name *</label>
+                            <input type="text" name="fatherName" required>
+                        </div>
+                        <div>
+                            <label>Phone *</label>
+                            <input type="tel" name="phone" required>
+                        </div>
+                        <div>
+                            <label>WhatsApp</label>
+                            <input type="tel" name="whatsapp">
+                        </div>
+                        <div>
+                            <label>Class *</label>
+                            <select name="class" required>
+                                <option value="">Select</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11-science">11 Science</option>
+                                <option value="11-commerce">11 Commerce</option>
+                                <option value="12-science">12 Science</option>
+                                <option value="12-commerce">12 Commerce</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Stream</label>
+                            <select name="stream">
+                                <option value="NA">NA</option>
+                                <option value="Science">Science</option>
+                                <option value="Commerce">Commerce</option>
+                                <option value="Arts">Arts</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Username *</label>
+                            <input type="text" name="username" required>
+                        </div>
+                        <div>
+                            <label>Password *</label>
+                            <input type="text" name="password" required>
+                        </div>
+                        <div>
+                            <label>Admission Date *</label>
+                            <input type="date" name="admDate" required>
+                        </div>
+                        <div>
+                            <label>Fee Amount *</label>
+                            <input type="number" name="feeAmount" required>
+                        </div>
+                        <div>
+                            <label>Fee Paid</label>
+                            <input type="number" name="feePaid" value="0">
+                        </div>
+                        <div>
+                            <label>Fee Status</label>
+                            <select name="feeStatus">
+                                <option value="pending">Pending</option>
+                                <option value="partial">Partial</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Address</label>
+                        <textarea name="address" rows="2"></textarea>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn-gold flex-1">Save</button>
+                        <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('studentForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const student = {
+                    id: uuid(),
+                    username: formData.get('username'),
+                    password: formData.get('password'),
+                    name: formData.get('name'),
+                    fatherName: formData.get('fatherName'),
+                    phone: formData.get('phone'),
+                    whatsapp: formData.get('whatsapp'),
+                    class: formData.get('class'),
+                    stream: formData.get('stream'),
+                    address: formData.get('address'),
+                    admDate: formData.get('admDate'),
+                    feeAmount: parseInt(formData.get('feeAmount')),
+                    feePaid: parseInt(formData.get('feePaid')),
+                    feeStatus: formData.get('feeStatus'),
+                    createdAt: new Date().toISOString()
+                };
+                
+                const students = JSON.parse(localStorage.getItem('gs_students'));
+                students.push(student);
+                saveStudentsData(students);
+                
+                logActivity(`Added student: ${student.name}`);
+                showToast('Student added successfully');
+                closeModal();
+                renderAdminStudents();
+            });
+        }
+        
+        function editStudent(id) {
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === id);
+            
+            showModal('Edit Student', `
+                <form id="studentForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label>Name *</label>
+                            <input type="text" name="name" value="${student.name}" required>
+                        </div>
+                        <div>
+                            <label>Father Name *</label>
+                            <input type="text" name="fatherName" value="${student.fatherName}" required>
+                        </div>
+                        <div>
+                            <label>Phone *</label>
+                            <input type="tel" name="phone" value="${student.phone}" required>
+                        </div>
+                        <div>
+                            <label>WhatsApp</label>
+                            <input type="tel" name="whatsapp" value="${student.whatsapp || ''}">
+                        </div>
+                        <div>
+                            <label>Class *</label>
+                            <select name="class" required>
+                                <option value="8" ${student.class === '8' ? 'selected' : ''}>8</option>
+                                <option value="9" ${student.class === '9' ? 'selected' : ''}>9</option>
+                                <option value="10" ${student.class === '10' ? 'selected' : ''}>10</option>
+                                <option value="11-science" ${student.class === '11-science' ? 'selected' : ''}>11 Science</option>
+                                <option value="11-commerce" ${student.class === '11-commerce' ? 'selected' : ''}>11 Commerce</option>
+                                <option value="12-science" ${student.class === '12-science' ? 'selected' : ''}>12 Science</option>
+                                <option value="12-commerce" ${student.class === '12-commerce' ? 'selected' : ''}>12 Commerce</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Stream</label>
+                            <select name="stream">
+                                <option value="NA" ${student.stream === 'NA' ? 'selected' : ''}>NA</option>
+                                <option value="Science" ${student.stream === 'Science' ? 'selected' : ''}>Science</option>
+                                <option value="Commerce" ${student.stream === 'Commerce' ? 'selected' : ''}>Commerce</option>
+                                <option value="Arts" ${student.stream === 'Arts' ? 'selected' : ''}>Arts</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Username *</label>
+                            <input type="text" name="username" value="${student.username}" required>
+                        </div>
+                        <div>
+                            <label>Password *</label>
+                            <input type="text" name="password" value="${student.password}" required>
+                        </div>
+                        <div>
+                            <label>Admission Date *</label>
+                            <input type="date" name="admDate" value="${student.admDate}" required>
+                        </div>
+                        <div>
+                            <label>Fee Amount *</label>
+                            <input type="number" name="feeAmount" value="${student.feeAmount}" required>
+                        </div>
+                        <div>
+                            <label>Fee Paid</label>
+                            <input type="number" name="feePaid" value="${student.feePaid}">
+                        </div>
+                        <div>
+                            <label>Fee Status</label>
+                            <select name="feeStatus">
+                                <option value="pending" ${student.feeStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                                <option value="partial" ${student.feeStatus === 'partial' ? 'selected' : ''}>Partial</option>
+                                <option value="paid" ${student.feeStatus === 'paid' ? 'selected' : ''}>Paid</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label>Address</label>
+                        <textarea name="address" rows="2">${student.address || ''}</textarea>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn-gold flex-1">Update</button>
+                        <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('studentForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedStudent = {
+                    ...student,
+                    username: formData.get('username'),
+                    password: formData.get('password'),
+                    name: formData.get('name'),
+                    fatherName: formData.get('fatherName'),
+                    phone: formData.get('phone'),
+                    whatsapp: formData.get('whatsapp'),
+                    class: formData.get('class'),
+                    stream: formData.get('stream'),
+                    address: formData.get('address'),
+                    admDate: formData.get('admDate'),
+                    feeAmount: parseInt(formData.get('feeAmount')),
+                    feePaid: parseInt(formData.get('feePaid')),
+                    feeStatus: formData.get('feeStatus')
+                };
+                
+                const students = JSON.parse(localStorage.getItem('gs_students'));
+                const index = students.findIndex(s => s.id === id);
+                students[index] = updatedStudent;
+                saveStudentsData(students);
+                
+                logActivity(`Updated student: ${updatedStudent.name}`);
+                showToast('Student updated successfully');
+                closeModal();
+                renderAdminStudents();
+            });
+        }
+        
+        function viewStudent(id) {
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === id);
+            
+            showModal('Student Details', `
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><strong>Name:</strong> ${student.name}</div>
+                        <div><strong>Father:</strong> ${student.fatherName}</div>
+                        <div><strong>Phone:</strong> ${student.phone}</div>
+                        <div><strong>WhatsApp:</strong> ${student.whatsapp || 'N/A'}</div>
+                        <div><strong>Class:</strong> ${student.class}</div>
+                        <div><strong>Stream:</strong> ${student.stream}</div>
+                        <div><strong>Username:</strong> ${student.username}</div>
+                        <div><strong>Admission:</strong> ${student.admDate}</div>
+                        <div><strong>Fee Amount:</strong> ₹${student.feeAmount}</div>
+                        <div><strong>Fee Paid:</strong> ₹${student.feePaid}</div>
+                        <div><strong>Fee Status:</strong> <span class="badge badge-${student.feeStatus}">${student.feeStatus}</span></div>
+                    </div>
+                    <div><strong>Address:</strong> ${student.address || 'N/A'}</div>
+                    <button onclick="closeModal()" class="btn-gold w-full mt-4">Close</button>
+                </div>
+            `);
+        }
+        
+        function deleteStudent(id) {
+            if (!confirm('Are you sure you want to delete this student?')) return;
+            
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === id);
+            const filtered = students.filter(s => s.id !== id);
+            saveStudentsData(filtered);
+            
+            logActivity(`Deleted student: ${student.name}`);
+            showToast('Student deleted successfully');
+            renderAdminStudents();
+        }
+        
+        function exportStudentsCSV() {
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const headers = ['Name', 'Father Name', 'Phone', 'WhatsApp', 'Class', 'Stream', 'Username', 'Admission Date', 'Fee Amount', 'Fee Paid', 'Fee Status', 'Address'];
+            const rows = students.map(s => [s.name, s.fatherName, s.phone, s.whatsapp, s.class, s.stream, s.username, s.admDate, s.feeAmount, s.feePaid, s.feeStatus, s.address]);
+            
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'students.csv';
+            a.click();
+            
+            showToast('Students exported successfully');
+        }
+        
+        // ============================================
+        // ADMIN: TEACHERS
+        // ============================================
+        
+        function renderAdminTeachers() {
+            document.getElementById('pageTitle').textContent = 'Teachers Management';
+            
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6">
+                    <button onclick="openAddTeacherModal()" class="btn-gold mb-4">
+                        <i class="fas fa-plus mr-2"></i>Add Teacher
+                    </button>
+                    
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Subject</th>
+                                    <th>Phone</th>
+                                    <th>Assigned Classes</th>
+                                    <th>Username</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${teachers.map((t, i) => `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${t.name}</td>
+                                        <td>${t.subject}</td>
+                                        <td>${t.phone}</td>
+                                        <td>${t.assignedClasses.join(', ')}</td>
+                                        <td>${t.username}</td>
+                                        <td>
+                                            <button onclick='editTeacher("${t.id}")' class="text-yellow-400 hover:text-yellow-300 mr-2">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button onclick='deleteTeacher("${t.id}")' class="text-red-400 hover:text-red-300">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function openAddTeacherModal() {
+            showModal('Add Teacher', `
+                <form id="teacherForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label>Name *</label>
+                            <input type="text" name="name" required>
+                        </div>
+                        <div>
+                            <label>Phone *</label>
+                            <input type="tel" name="phone" required>
+                        </div>
+                        <div>
+                            <label>Subject *</label>
+                            <input type="text" name="subject" required>
+                        </div>
+                        <div>
+                            <label>Qualification</label>
+                            <input type="text" name="qualification">
+                        </div>
+                        <div>
+                            <label>Username *</label>
+                            <input type="text" name="username" required>
+                        </div>
+                        <div>
+                            <label>Password *</label>
+                            <input type="text" name="password" required>
+                        </div>
+                        <div>
+                            <label>Join Date *</label>
+                            <input type="date" name="joinDate" required>
+                        </div>
+                        <div>
+                            <label>Salary</label>
+                            <input type="number" name="salary">
+                        </div>
+                    </div>
+                    <div>
+                        <label>Assigned Classes (comma-separated: 9,10,11-science) *</label>
+                        <input type="text" name="assignedClasses" placeholder="9,10,11-science" required>
+                    </div>
+                    <div>
+                        <label>Address</label>
+                        <textarea name="address" rows="2"></textarea>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn-gold flex-1">Save</button>
+                        <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('teacherForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const teacher = {
+                    id: uuid(),
+                    username: formData.get('username'),
+                    password: formData.get('password'),
+                    name: formData.get('name'),
+                    phone: formData.get('phone'),
+                    subject: formData.get('subject'),
+                    qualification: formData.get('qualification'),
+                    assignedClasses: formData.get('assignedClasses').split(',').map(c => c.trim()),
+                    joinDate: formData.get('joinDate'),
+                    salary: parseInt(formData.get('salary')) || 0,
+                    address: formData.get('address'),
+                    createdAt: new Date().toISOString()
+                };
+                
+                const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+                teachers.push(teacher);
+                saveTeachersData(teachers);
+                
+                logActivity(`Added teacher: ${teacher.name}`);
+                showToast('Teacher added successfully');
+                closeModal();
+                renderAdminTeachers();
+            });
+        }
+        
+        function editTeacher(id) {
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teacher = teachers.find(t => t.id === id);
+            
+            showModal('Edit Teacher', `
+                <form id="teacherForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label>Name *</label>
+                            <input type="text" name="name" value="${teacher.name}" required>
+                        </div>
+                        <div>
+                            <label>Phone *</label>
+                            <input type="tel" name="phone" value="${teacher.phone}" required>
+                        </div>
+                        <div>
+                            <label>Subject *</label>
+                            <input type="text" name="subject" value="${teacher.subject}" required>
+                        </div>
+                        <div>
+                            <label>Qualification</label>
+                            <input type="text" name="qualification" value="${teacher.qualification}">
+                        </div>
+                        <div>
+                            <label>Username *</label>
+                            <input type="text" name="username" value="${teacher.username}" required>
+                        </div>
+                        <div>
+                            <label>Password *</label>
+                            <input type="text" name="password" value="${teacher.password}" required>
+                        </div>
+                        <div>
+                            <label>Join Date *</label>
+                            <input type="date" name="joinDate" value="${teacher.joinDate}" required>
+                        </div>
+                        <div>
+                            <label>Salary</label>
+                            <input type="number" name="salary" value="${teacher.salary}">
+                        </div>
+                    </div>
+                    <div>
+                        <label>Assigned Classes (comma-separated) *</label>
+                        <input type="text" name="assignedClasses" value="${teacher.assignedClasses.join(',')}" required>
+                    </div>
+                    <div>
+                        <label>Address</label>
+                        <textarea name="address" rows="2">${teacher.address || ''}</textarea>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn-gold flex-1">Update</button>
+                        <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('teacherForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updatedTeacher = {
+                    ...teacher,
+                    username: formData.get('username'),
+                    password: formData.get('password'),
+                    name: formData.get('name'),
+                    phone: formData.get('phone'),
+                    subject: formData.get('subject'),
+                    qualification: formData.get('qualification'),
+                    assignedClasses: formData.get('assignedClasses').split(',').map(c => c.trim()),
+                    joinDate: formData.get('joinDate'),
+                    salary: parseInt(formData.get('salary')) || 0,
+                    address: formData.get('address')
+                };
+                
+                const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+                const index = teachers.findIndex(t => t.id === id);
+                teachers[index] = updatedTeacher;
+                saveTeachersData(teachers);
+                
+                logActivity(`Updated teacher: ${updatedTeacher.name}`);
+                showToast('Teacher updated successfully');
+                closeModal();
+                renderAdminTeachers();
+            });
+        }
+        
+        function deleteTeacher(id) {
+            if (!confirm('Are you sure you want to delete this teacher?')) return;
+            
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teacher = teachers.find(t => t.id === id);
+            const filtered = teachers.filter(t => t.id !== id);
+            saveTeachersData(filtered);
+            
+            logActivity(`Deleted teacher: ${teacher.name}`);
+            showToast('Teacher deleted successfully');
+            renderAdminTeachers();
+        }
+        
+        // ============================================
+        // ADMIN: ACCOUNTS MANAGEMENT
+        // ============================================
+        
+        function renderAdminAccounts() {
+            document.getElementById('pageTitle').textContent = 'Account Management';
+            
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6">
+                    <div class="flex gap-4 mb-6 border-b border-gray-700">
+                        <button onclick="showAccountsTab('students')" class="px-6 py-3 gold-accent border-b-2 border-gold-accent" id="studentsTab">
+                            Students
+                        </button>
+                        <button onclick="showAccountsTab('teachers')" class="px-6 py-3 text-gray-400" id="teachersTab">
+                            Teachers
+                        </button>
+                    </div>
+                    
+                    <div id="studentsAccounts">
+                        <div class="overflow-x-auto">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Username</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${students.map(s => `
+                                        <tr>
+                                            <td>${s.name}</td>
+                                            <td>${s.username}</td>
+                                            <td>Student</td>
+                                            <td>
+                                                <button onclick='resetPassword("student", "${s.id}")' class="text-blue-400 hover:text-blue-300">
+                                                    <i class="fas fa-key mr-1"></i>Reset Password
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="teachersAccounts" class="hidden">
+                        <div class="overflow-x-auto">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Username</th>
+                                        <th>Role</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${teachers.map(t => `
+                                        <tr>
+                                            <td>${t.name}</td>
+                                            <td>${t.username}</td>
+                                            <td>Teacher</td>
+                                            <td>
+                                                <button onclick='resetPassword("teacher", "${t.id}")' class="text-blue-400 hover:text-blue-300">
+                                                    <i class="fas fa-key mr-1"></i>Reset Password
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showAccountsTab(tab) {
+            if (tab === 'students') {
+                document.getElementById('studentsAccounts').classList.remove('hidden');
+                document.getElementById('teachersAccounts').classList.add('hidden');
+                document.getElementById('studentsTab').className = 'px-6 py-3 gold-accent border-b-2 border-gold-accent';
+                document.getElementById('teachersTab').className = 'px-6 py-3 text-gray-400';
+            } else {
+                document.getElementById('studentsAccounts').classList.add('hidden');
+                document.getElementById('teachersAccounts').classList.remove('hidden');
+                document.getElementById('studentsTab').className = 'px-6 py-3 text-gray-400';
+                document.getElementById('teachersTab').className = 'px-6 py-3 gold-accent border-b-2 border-gold-accent';
+            }
+        }
+        
+        function resetPassword(role, id) {
+            showModal('Reset Password', `
+                <form id="resetPasswordForm" class="space-y-4">
+                    <div>
+                        <label>New Password *</label>
+                        <input type="text" name="newPassword" required>
+                    </div>
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn-gold flex-1">Reset</button>
+                        <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
+                    </div>
+                </form>
+            `);
+            
+            document.getElementById('resetPasswordForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newPassword = formData.get('newPassword');
+                
+                if (role === 'student') {
+                    const students = JSON.parse(localStorage.getItem('gs_students'));
+                    const index = students.findIndex(s => s.id === id);
+                    students[index].password = newPassword;
+                    saveStudentsData(students);
+                    logActivity(`Reset password for student: ${students[index].name}`);
+                } else {
+                    const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+                    const index = teachers.findIndex(t => t.id === id);
+                    teachers[index].password = newPassword;
+                    saveTeachersData(teachers);
+                    logActivity(`Reset password for teacher: ${teachers[index].name}`);
+                }
+                
+                showToast('Password reset successfully');
+                closeModal();
+            });
+        }
+        
+        // ============================================
+        // ADMIN: ATTENDANCE
+        // ============================================
+        
+        function renderAdminAttendance() {
+            document.getElementById('pageTitle').textContent = 'Attendance Management';
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Mark Attendance</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label>Date *</label>
+                            <input type="date" id="attendanceDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div>
+                            <label>Class *</label>
+                            <select id="attendanceClass">
+                                <option value="">Select Class</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11-science">11 Science</option>
+                                <option value="11-commerce">11 Commerce</option>
+                                <option value="12-science">12 Science</option>
+                                <option value="12-commerce">12 Commerce</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="loadAttendanceGrid()" class="btn-gold mb-4">Load Students</button>
+                    
+                    <div id="attendanceGrid"></div>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Past Attendance Records</h3>
+                    <div id="pastAttendance"></div>
+                </div>
+            `;
+            
+            loadPastAttendance();
+        }
+        
+        function loadAttendanceGrid() {
+            const selectedClass = document.getElementById('attendanceClass').value;
+            if (!selectedClass) {
+                showToast('Please select a class', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const grid = document.getElementById('attendanceGrid');
+            grid.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Roll No.</th>
+                                <th>Name</th>
+                                <th>Present</th>
+                                <th>Absent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${students.map((s, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${s.name}</td>
+                                    <td>
+                                        <input type="radio" name="attendance_${s.id}" value="present" checked>
+                                    </td>
+                                    <td>
+                                        <input type="radio" name="attendance_${s.id}" value="absent">
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="saveAttendance()" class="btn-gold mt-4">Save Attendance</button>
+            `;
+        }
+        
+        function saveAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            const selectedClass = document.getElementById('attendanceClass').value;
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const records = students.map(s => ({
+                studentId: s.id,
+                present: document.querySelector(`input[name="attendance_${s.id}"]:checked`).value === 'present'
+            }));
+            
+            const attendance = {
+                id: uuid(),
+                date,
+                class: selectedClass,
+                records,
+                savedBy: currentSession.role === 'admin' ? 'admin' : currentSession.id,
+                savedAt: new Date().toISOString()
+            };
+            
+            const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            allAttendance.push(attendance);
+            saveAttendanceData(allAttendance);
+            
+            logActivity(`Marked attendance for class ${selectedClass} on ${date}`);
+            showToast('Attendance saved successfully');
+            renderAdminAttendance();
+        }
+        
+        function loadPastAttendance() {
+            const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            const container = document.getElementById('pastAttendance');
+            
+            if (allAttendance.length === 0) {
+                container.innerHTML = '<p class="text-gray-400">No attendance records found</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Class</th>
+                                <th>Present</th>
+                                <th>Absent</th>
+                                <th>Saved By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allAttendance.map(a => {
+                                const present = a.records.filter(r => r.present).length;
+                                const absent = a.records.length - present;
+                                return `
+                                    <tr>
+                                        <td>${a.date}</td>
+                                        <td>${a.class}</td>
+                                        <td class="text-green-400">${present}</td>
+                                        <td class="text-red-400">${absent}</td>
+                                        <td>${a.savedBy}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // ADMIN: MARKS
+        // ============================================
+        
+        function renderAdminMarks() {
+            document.getElementById('pageTitle').textContent = 'Marks Management';
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Enter Marks</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label>Class *</label>
+                            <select id="marksClass">
+                                <option value="">Select Class</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11-science">11 Science</option>
+                                <option value="11-commerce">11 Commerce</option>
+                                <option value="12-science">12 Science</option>
+                                <option value="12-commerce">12 Commerce</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Test Name *</label>
+                            <input type="text" id="testName" placeholder="e.g., First Term">
+                        </div>
+                        <div>
+                            <label>Subject *</label>
+                            <input type="text" id="testSubject" placeholder="e.g., Mathematics">
+                        </div>
+                        <div>
+                            <label>Total Marks *</label>
+                            <input type="number" id="totalMarks" placeholder="100">
+                        </div>
+                        <div>
+                            <label>Date *</label>
+                            <input type="date" id="marksDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                    </div>
+                    <button onclick="loadMarksGrid()" class="btn-gold mb-4">Load Students</button>
+                    
+                    <div id="marksGrid"></div>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Past Results</h3>
+                    <div id="pastMarks"></div>
+                </div>
+            `;
+            
+            loadPastMarks();
+        }
+        
+        function loadMarksGrid() {
+            const selectedClass = document.getElementById('marksClass').value;
+            if (!selectedClass) {
+                showToast('Please select a class', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const grid = document.getElementById('marksGrid');
+            grid.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Roll No.</th>
+                                <th>Name</th>
+                                <th>Marks Obtained</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${students.map((s, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${s.name}</td>
+                                    <td>
+                                        <input type="number" id="marks_${s.id}" min="0" max="${document.getElementById('totalMarks').value || 100}" 
+                                            class="w-24 bg-gray-800 border border-gray-600 rounded px-2 py-1">
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="saveMarks()" class="btn-gold mt-4">Save Marks</button>
+            `;
+        }
+        
+        function saveMarks() {
+            const selectedClass = document.getElementById('marksClass').value;
+            const testName = document.getElementById('testName').value;
+            const subject = document.getElementById('testSubject').value;
+            const total = parseInt(document.getElementById('totalMarks').value);
+            const date = document.getElementById('marksDate').value;
+            
+            if (!testName || !subject || !total) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const records = students.map(s => ({
+                studentId: s.id,
+                marks: parseInt(document.getElementById(`marks_${s.id}`).value) || 0
+            }));
+            
+            const marksRecord = {
+                id: uuid(),
+                test: testName,
+                subject,
+                class: selectedClass,
+                total,
+                date,
+                records,
+                savedBy: currentSession.role === 'admin' ? 'admin' : currentSession.id
+            };
+            
+            const allMarks = JSON.parse(localStorage.getItem('gs_marks'));
+            allMarks.push(marksRecord);
+            saveMarksData(allMarks);
+            
+            logActivity(`Added marks for ${testName} - ${subject} (Class ${selectedClass})`);
+            showToast('Marks saved successfully');
+            renderAdminMarks();
+        }
+        
+        function loadPastMarks() {
+            const allMarks = JSON.parse(localStorage.getItem('gs_marks'));
+            const container = document.getElementById('pastMarks');
+            
+            if (allMarks.length === 0) {
+                container.innerHTML = '<p class="text-gray-400">No marks records found</p>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Test</th>
+                                <th>Subject</th>
+                                <th>Class</th>
+                                <th>Total Marks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allMarks.map(m => `
+                                <tr>
+                                    <td>${m.date}</td>
+                                    <td>${m.test}</td>
+                                    <td>${m.subject}</td>
+                                    <td>${m.class}</td>
+                                    <td>${m.total}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // ADMIN: SETTINGS
+        // ============================================
+        
+        function renderAdminSettings() {
+            document.getElementById('pageTitle').textContent = 'Settings';
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-6">
+                        <h3 class="text-xl font-bold mb-4 gold-accent">Change Admin Password</h3>
+                        <form id="changePasswordForm" class="space-y-4">
+                            <div>
+                                <label>Current Password *</label>
+                                <input type="password" name="currentPassword" required>
+                            </div>
+                            <div>
+                                <label>New Password *</label>
+                                <input type="password" name="newPassword" required>
+                            </div>
+                            <div>
+                                <label>Confirm New Password *</label>
+                                <input type="password" name="confirmPassword" required>
+                            </div>
+                            <button type="submit" class="btn-gold w-full">Change Password</button>
+                        </form>
+                    </div>
+                    
+                    <div class="glass-card p-6">
+                        <h3 class="text-xl font-bold mb-4 gold-accent">Institute Information</h3>
+                        <div class="space-y-2">
+                            <p><strong>Name:</strong> ज्ञानसिंधू क्लासेस</p>
+                            <p><strong>Location:</strong> नेरळ</p>
+                            <p><strong>Contact:</strong> 7218432344</p>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 lg:col-span-2">
+                        <h3 class="text-xl font-bold mb-4 gold-accent">Data Management</h3>
+                        <div class="flex gap-4">
+                            <button onclick="exportAllData()" class="btn-gold">
+                                <i class="fas fa-download mr-2"></i>Export All Data
+                            </button>
+                            <button onclick="clearAllData()" class="btn-gold bg-red-600 hover:bg-red-700">
+                                <i class="fas fa-trash mr-2"></i>Clear All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const current = formData.get('currentPassword');
+                const newPass = formData.get('newPassword');
+                const confirm = formData.get('confirmPassword');
+                
+                const admin = JSON.parse(localStorage.getItem('gs_admin'));
+                
+                if (current !== admin.password) {
+                    showToast('Current password is incorrect', 'error');
+                    return;
+                }
+                
+                if (newPass !== confirm) {
+                    showToast('Passwords do not match', 'error');
+                    return;
+                }
+                
+                admin.password = newPass;
+                localStorage.setItem('gs_admin', JSON.stringify(admin));
+                showToast('Password changed successfully');
+                e.target.reset();
+            });
+        }
+        
+        function exportAllData() {
+            const data = {
+                students: JSON.parse(localStorage.getItem('gs_students')),
+                teachers: JSON.parse(localStorage.getItem('gs_teachers')),
+                attendance: JSON.parse(localStorage.getItem('gs_attendance')),
+                marks: JSON.parse(localStorage.getItem('gs_marks')),
+                activity: JSON.parse(localStorage.getItem('gs_activity'))
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gs-data-backup.json';
+            a.click();
+            
+            showToast('Data exported successfully');
+        }
+        
+        function clearAllData() {
+            if (!confirm('Are you sure you want to clear all data? This action cannot be undone!')) return;
+            if (!confirm('This will delete all students, teachers, attendance, and marks. Are you absolutely sure?')) return;
+            
+            localStorage.setItem('gs_students', JSON.stringify([]));
+            localStorage.setItem('gs_teachers', JSON.stringify([]));
+            localStorage.setItem('gs_attendance', JSON.stringify([]));
+            localStorage.setItem('gs_marks', JSON.stringify([]));
+            localStorage.setItem('gs_activity', JSON.stringify([]));
+            
+            showToast('All data cleared');
+            renderAdminSettings();
+        }
+        
+        // ============================================
+        // TEACHER: DASHBOARD
+        // ============================================
+        
+        function renderTeacherDashboard() {
+            document.getElementById('pageTitle').textContent = 'Teacher Dashboard';
+            
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teacher = teachers.find(t => t.id === currentSession.id);
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => teacher.assignedClasses.includes(s.class));
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-2xl font-bold gold-accent mb-2">नमस्कार, ${teacher.name}!</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div><strong>Subject:</strong> ${teacher.subject}</div>
+                        <div><strong>Assigned Classes:</strong> ${teacher.assignedClasses.join(', ')}</div>
+                        <div><strong>Phone:</strong> ${teacher.phone}</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-user-graduate"></i></div>
+                        <div class="text-2xl font-bold">${students.length}</div>
+                        <div class="text-gray-400 text-sm">Total Students in My Classes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-chalkboard"></i></div>
+                        <div class="text-2xl font-bold">${teacher.assignedClasses.length}</div>
+                        <div class="text-gray-400 text-sm">Classes Assigned</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="navigateTo('teacher-attendance')" class="btn-gold p-4">
+                        <i class="fas fa-calendar-check mr-2"></i>Mark Attendance
+                    </button>
+                    <button onclick="navigateTo('teacher-marks')" class="btn-gold p-4">
+                        <i class="fas fa-edit mr-2"></i>Enter Marks
+                    </button>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // TEACHER: ATTENDANCE
+        // ============================================
+        
+        function renderTeacherAttendance() {
+            document.getElementById('pageTitle').textContent = 'Mark Attendance';
+            
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teacher = teachers.find(t => t.id === currentSession.id);
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Mark Attendance</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label>Date *</label>
+                            <input type="date" id="teacherAttendanceDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div>
+                            <label>Class *</label>
+                            <select id="teacherAttendanceClass">
+                                <option value="">Select Class</option>
+                                ${teacher.assignedClasses.map(c => `<option value="${c}">${c}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <button onclick="loadTeacherAttendanceGrid()" class="btn-gold mb-4">Load Students</button>
+                    
+                    <div id="teacherAttendanceGrid"></div>
+                </div>
+            `;
+        }
+        
+        function loadTeacherAttendanceGrid() {
+            const selectedClass = document.getElementById('teacherAttendanceClass').value;
+            if (!selectedClass) {
+                showToast('Please select a class', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const grid = document.getElementById('teacherAttendanceGrid');
+            grid.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Roll No.</th>
+                                <th>Name</th>
+                                <th>Present</th>
+                                <th>Absent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${students.map((s, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${s.name}</td>
+                                    <td>
+                                        <input type="radio" name="attendance_${s.id}" value="present" checked>
+                                    </td>
+                                    <td>
+                                        <input type="radio" name="attendance_${s.id}" value="absent">
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="saveTeacherAttendance()" class="btn-gold mt-4">Save Attendance</button>
+            `;
+        }
+        
+        function saveTeacherAttendance() {
+            const date = document.getElementById('teacherAttendanceDate').value;
+            const selectedClass = document.getElementById('teacherAttendanceClass').value;
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const records = students.map(s => ({
+                studentId: s.id,
+                present: document.querySelector(`input[name="attendance_${s.id}"]:checked`).value === 'present'
+            }));
+            
+            const attendance = {
+                id: uuid(),
+                date,
+                class: selectedClass,
+                records,
+                savedBy: currentSession.id,
+                savedAt: new Date().toISOString()
+            };
+            
+            const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            allAttendance.push(attendance);
+            saveAttendanceData(allAttendance);
+            
+            logActivity(`Teacher ${currentSession.name} marked attendance for class ${selectedClass} on ${date}`);
+            showToast('Attendance saved successfully');
+            renderTeacherAttendance();
+        }
+        
+        // ============================================
+        // TEACHER: MARKS
+        // ============================================
+        
+        function renderTeacherMarks() {
+            document.getElementById('pageTitle').textContent = 'Enter Marks';
+            
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teacher = teachers.find(t => t.id === currentSession.id);
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Enter Marks</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label>Class *</label>
+                            <select id="teacherMarksClass">
+                                <option value="">Select Class</option>
+                                ${teacher.assignedClasses.map(c => `<option value="${c}">${c}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label>Test Name *</label>
+                            <input type="text" id="teacherTestName" placeholder="e.g., First Term">
+                        </div>
+                        <div>
+                            <label>Subject *</label>
+                            <input type="text" id="teacherTestSubject" value="${teacher.subject}">
+                        </div>
+                        <div>
+                            <label>Total Marks *</label>
+                            <input type="number" id="teacherTotalMarks" placeholder="100">
+                        </div>
+                        <div>
+                            <label>Date *</label>
+                            <input type="date" id="teacherMarksDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                    </div>
+                    <button onclick="loadTeacherMarksGrid()" class="btn-gold mb-4">Load Students</button>
+                    
+                    <div id="teacherMarksGrid"></div>
+                </div>
+            `;
+        }
+        
+        function loadTeacherMarksGrid() {
+            const selectedClass = document.getElementById('teacherMarksClass').value;
+            if (!selectedClass) {
+                showToast('Please select a class', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            const totalMarks = document.getElementById('teacherTotalMarks').value;
+            
+            const grid = document.getElementById('teacherMarksGrid');
+            grid.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Roll No.</th>
+                                <th>Name</th>
+                                <th>Marks Obtained</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${students.map((s, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${s.name}</td>
+                                    <td>
+                                        <input type="number" id="marks_${s.id}" min="0" max="${totalMarks || 100}" 
+                                            class="w-24 bg-gray-800 border border-gray-600 rounded px-2 py-1">
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="saveTeacherMarks()" class="btn-gold mt-4">Save Marks</button>
+            `;
+        }
+        
+        function saveTeacherMarks() {
+            const selectedClass = document.getElementById('teacherMarksClass').value;
+            const testName = document.getElementById('teacherTestName').value;
+            const subject = document.getElementById('teacherTestSubject').value;
+            const total = parseInt(document.getElementById('teacherTotalMarks').value);
+            const date = document.getElementById('teacherMarksDate').value;
+            
+            if (!testName || !subject || !total) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            
+            const records = students.map(s => ({
+                studentId: s.id,
+                marks: parseInt(document.getElementById(`marks_${s.id}`).value) || 0
+            }));
+            
+            const marksRecord = {
+                id: uuid(),
+                test: testName,
+                subject,
+                class: selectedClass,
+                total,
+                date,
+                records,
+                savedBy: currentSession.id
+            };
+            
+            const allMarks = JSON.parse(localStorage.getItem('gs_marks'));
+            allMarks.push(marksRecord);
+            saveMarksData(allMarks);
+            
+            logActivity(`Teacher ${currentSession.name} added marks for ${testName} - ${subject} (Class ${selectedClass})`);
+            showToast('Marks saved successfully');
+            renderTeacherMarks();
+        }
+        
+        // ============================================
+        // TEACHER: VIEW STUDENTS
+        // ============================================
+        
+        function renderTeacherStudents() {
+            document.getElementById('pageTitle').textContent = 'View Students';
+            
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teacher = teachers.find(t => t.id === currentSession.id);
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => teacher.assignedClasses.includes(s.class));
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Students in My Classes</h3>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Class</th>
+                                    <th>Phone</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${students.map((s, i) => `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${s.name}</td>
+                                        <td>${s.class}</td>
+                                        <td>${s.phone}</td>
+                                        <td>
+                                            <button onclick='viewStudentDetails("${s.id}")' class="text-blue-400 hover:text-blue-300">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function viewStudentDetails(id) {
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === id);
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            const marks = JSON.parse(localStorage.getItem('gs_marks'));
+            
+            // Calculate attendance
+            const studentAttendance = attendance.filter(a => a.records.some(r => r.studentId === id));
+            const totalDays = studentAttendance.length;
+            const presentDays = studentAttendance.filter(a => a.records.find(r => r.studentId === id).present).length;
+            const attendancePercent = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0;
+            
+            // Get marks
+            const studentMarks = marks.filter(m => m.records.some(r => r.studentId === id));
+            
+            showModal('Student Details', `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><strong>Name:</strong> ${student.name}</div>
+                        <div><strong>Class:</strong> ${student.class}</div>
+                        <div><strong>Phone:</strong> ${student.phone}</div>
+                        <div><strong>Father:</strong> ${student.fatherName}</div>
+                    </div>
+                    
+                    <div class="border-t border-gray-700 pt-4">
+                        <h4 class="font-bold gold-accent mb-2">Attendance Summary</h4>
+                        <p>Total Days: ${totalDays} | Present: ${presentDays} | Attendance: ${attendancePercent}%</p>
+                    </div>
+                    
+                    <div class="border-t border-gray-700 pt-4">
+                        <h4 class="font-bold gold-accent mb-2">Marks History</h4>
+                        ${studentMarks.length > 0 ? `
+                            <table class="w-full">
+                                <thead>
+                                    <tr>
+                                        <th class="text-left">Test</th>
+                                        <th class="text-left">Subject</th>
+                                        <th class="text-left">Marks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${studentMarks.map(m => {
+                                        const record = m.records.find(r => r.studentId === id);
+                                        return `
+                                            <tr>
+                                                <td>${m.test}</td>
+                                                <td>${m.subject}</td>
+                                                <td>${record.marks}/${m.total}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p class="text-gray-400">No marks records found</p>'}
+                    </div>
+                    
+                    <button onclick="closeModal()" class="btn-gold w-full">Close</button>
+                </div>
+            `);
+        }
+        
+        // ============================================
+        // STUDENT: DASHBOARD
+        // ============================================
+        
+        function renderStudentDashboard() {
+            document.getElementById('pageTitle').textContent = 'Student Dashboard';
+            
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === currentSession.id);
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            const marks = JSON.parse(localStorage.getItem('gs_marks'));
+            
+            // Calculate attendance
+            const studentAttendance = attendance.filter(a => a.records.some(r => r.studentId === currentSession.id));
+            const totalDays = studentAttendance.length;
+            const presentDays = studentAttendance.filter(a => a.records.find(r => r.studentId === currentSession.id).present).length;
+            const attendancePercent = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0;
+            
+            // Calculate average marks
+            const studentMarks = marks.filter(m => m.records.some(r => r.studentId === currentSession.id));
+            let avgMarks = 0;
+            if (studentMarks.length > 0) {
+                const totalPercent = studentMarks.reduce((sum, m) => {
+                    const record = m.records.find(r => r.studentId === currentSession.id);
+                    return sum + (record.marks / m.total * 100);
+                }, 0);
+                avgMarks = (totalPercent / studentMarks.length).toFixed(1);
+            }
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-2xl font-bold gold-accent mb-2">नमस्कार, ${student.name}!</h3>
+                </div>
+                
+                <div class="glass-card p-6 mb-6">
+                    <h4 class="font-bold gold-accent mb-3">Profile</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><strong>Class:</strong> ${student.class}</div>
+                        <div><strong>Stream:</strong> ${student.stream}</div>
+                        <div><strong>Father's Name:</strong> ${student.fatherName}</div>
+                        <div><strong>Phone:</strong> ${student.phone}</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-calendar-check"></i></div>
+                        <div class="text-2xl font-bold">${attendancePercent}%</div>
+                        <div class="text-gray-400 text-sm">Attendance</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl gold-accent mb-2"><i class="fas fa-star"></i></div>
+                        <div class="text-2xl font-bold">${avgMarks}%</div>
+                        <div class="text-gray-400 text-sm">Average Marks</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-3xl ${student.feeStatus === 'paid' ? 'text-green-400' : 'text-red-400'} mb-2">
+                            <i class="fas fa-rupee-sign"></i>
+                        </div>
+                        <div class="text-2xl font-bold"><span class="badge badge-${student.feeStatus}">${student.feeStatus}</span></div>
+                        <div class="text-gray-400 text-sm">Fee Status</div>
+                    </div>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h4 class="font-bold gold-accent mb-3">Recent Marks</h4>
+                    ${studentMarks.slice(-3).reverse().map(m => {
+                        const record = m.records.find(r => r.studentId === currentSession.id);
+                        return `
+                            <div class="flex justify-between py-2 border-b border-gray-700">
+                                <div>
+                                    <div class="font-semibold">${m.test} - ${m.subject}</div>
+                                    <div class="text-sm text-gray-400">${m.date}</div>
+                                </div>
+                                <div class="text-xl font-bold gold-accent">${record.marks}/${m.total}</div>
+                            </div>
+                        `;
+                    }).join('') || '<p class="text-gray-400">No marks records found</p>'}
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // STUDENT: ATTENDANCE
+        // ============================================
+        
+        function renderStudentAttendance() {
+            document.getElementById('pageTitle').textContent = 'My Attendance';
+            
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            const studentAttendance = attendance.filter(a => a.records.some(r => r.studentId === currentSession.id));
+            
+            const totalDays = studentAttendance.length;
+            const presentDays = studentAttendance.filter(a => a.records.find(r => r.studentId === currentSession.id).present).length;
+            const absentDays = totalDays - presentDays;
+            const attendancePercent = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0;
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-xl font-bold gold-accent mb-4">Attendance Summary</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="stat-card">
+                            <div class="text-2xl font-bold">${presentDays}</div>
+                            <div class="text-gray-400 text-sm">Total Present</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="text-2xl font-bold">${absentDays}</div>
+                            <div class="text-gray-400 text-sm">Total Absent</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="text-2xl font-bold gold-accent">${attendancePercent}%</div>
+                            <div class="text-gray-400 text-sm">Attendance %</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold gold-accent mb-4">Attendance Records</h3>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Class</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${studentAttendance.map(a => {
+                                    const record = a.records.find(r => r.studentId === currentSession.id);
+                                    return `
+                                        <tr>
+                                            <td>${a.date}</td>
+                                            <td>${a.class}</td>
+                                            <td>
+                                                <span class="badge ${record.present ? 'badge-paid' : 'badge-pending'}">
+                                                    ${record.present ? 'Present' : 'Absent'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                                ${studentAttendance.length === 0 ? '<tr><td colspan="3" class="text-center text-gray-400">No attendance records found</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // STUDENT: MARKS
+        // ============================================
+        
+        function renderStudentMarks() {
+            document.getElementById('pageTitle').textContent = 'My Marks';
+            
+            const marks = JSON.parse(localStorage.getItem('gs_marks'));
+            const studentMarks = marks.filter(m => m.records.some(r => r.studentId === currentSession.id));
+            
+            let avgMarks = 0;
+            if (studentMarks.length > 0) {
+                const totalPercent = studentMarks.reduce((sum, m) => {
+                    const record = m.records.find(r => r.studentId === currentSession.id);
+                    return sum + (record.marks / m.total * 100);
+                }, 0);
+                avgMarks = (totalPercent / studentMarks.length).toFixed(1);
+            }
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-xl font-bold gold-accent mb-4">Overall Average</h3>
+                    <div class="text-4xl font-bold gold-accent">${avgMarks}%</div>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold gold-accent mb-4">All Test Results</h3>
+                    <div class="overflow-x-auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Test Name</th>
+                                    <th>Subject</th>
+                                    <th>Marks Obtained</th>
+                                    <th>Total</th>
+                                    <th>Percentage</th>
+                                    <th>Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${studentMarks.map(m => {
+                                    const record = m.records.find(r => r.studentId === currentSession.id);
+                                    const percent = (record.marks / m.total * 100).toFixed(1);
+                                    let grade = 'F';
+                                    if (percent >= 90) grade = 'A+';
+                                    else if (percent >= 80) grade = 'A';
+                                    else if (percent >= 70) grade = 'B';
+                                    else if (percent >= 60) grade = 'C';
+                                    else if (percent >= 50) grade = 'D';
+                                    else if (percent >= 40) grade = 'E';
+                                    
+                                    return `
+                                        <tr>
+                                            <td>${m.date}</td>
+                                            <td>${m.test}</td>
+                                            <td>${m.subject}</td>
+                                            <td>${record.marks}</td>
+                                            <td>${m.total}</td>
+                                            <td>${percent}%</td>
+                                            <td><span class="badge ${percent >= 40 ? 'badge-paid' : 'badge-pending'}">${grade}</span></td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                                ${studentMarks.length === 0 ? '<tr><td colspan="7" class="text-center text-gray-400">No marks records found</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // STUDENT: FEES
+        // ============================================
+        
+        function renderStudentFees() {
+            document.getElementById('pageTitle').textContent = 'Fee Details';
+            
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === currentSession.id);
+            
+            const remaining = student.feeAmount - student.feePaid;
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold gold-accent mb-4">Fee Summary</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="stat-card">
+                            <div class="text-gray-400 text-sm mb-1">Total Fee</div>
+                            <div class="text-2xl font-bold">₹${student.feeAmount}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="text-gray-400 text-sm mb-1">Paid</div>
+                            <div class="text-2xl font-bold text-green-400">₹${student.feePaid}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="text-gray-400 text-sm mb-1">Remaining</div>
+                            <div class="text-2xl font-bold text-red-400">₹${remaining}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                        <div class="text-sm text-gray-400 mb-1">Status</div>
+                        <span class="badge badge-${student.feeStatus} text-lg">${student.feeStatus.toUpperCase()}</span>
+                    </div>
+                    
+                    ${student.feeStatus !== 'paid' ? `
+                        <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4">
+                            <div class="flex items-start">
+                                <i class="fas fa-info-circle text-yellow-400 mt-1 mr-3"></i>
+                                <div>
+                                    <div class="font-bold mb-2">फी बद्दल माहितीसाठी संपर्क करा:</div>
+                                    <div class="text-lg gold-accent">📞 7218432344</div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="bg-green-900 bg-opacity-30 border border-green-600 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle text-green-400 mr-3 text-2xl"></i>
+                                <div class="text-lg">Your fees are fully paid. Thank you!</div>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // MODAL UTILITIES
+        // ============================================
+        
+        function showModal(title, content) {
+            const modalContainer = document.getElementById('modalContainer');
+            modalContainer.innerHTML = `
+                <div class="modal active">
+                    <div class="modal-content">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold gold-accent">${title}</h2>
+                            <button onclick="closeModal()" class="text-2xl text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        ${content}
+                    </div>
+                </div>
+            `;
+            
+            // Close on Escape key
+            document.addEventListener('keydown', handleEscapeKey);
+            
+            // Close on backdrop click
+            document.querySelector('.modal').addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal')) {
+                    closeModal();
+                }
+            });
+        }
+        
+        function closeModal() {
+            const modalContainer = document.getElementById('modalContainer');
+            modalContainer.innerHTML = '';
+            document.removeEventListener('keydown', handleEscapeKey);
+        }
+        
+        function handleEscapeKey(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        }
+        
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
+        // Check if already logged in (for development/testing)
+        // In production, you'd want to add proper session management
+        
+        // ============================================
+        // GOOGLE SHEETS API INTEGRATION
+        // ============================================
+        
+        // Configuration
+        const GOOGLE_SHEETS_CONFIG = {
+            apiKey: 'AIzaSyAut25RSBkUkJ6l13-qnS8pEGvXF0Yi-88', // Add your Google API Key here
+            spreadsheetId: '17nYNwMeXiW-MS1u_jfdfkJnZNgo8Ya_G', // Add your Google Spreadsheet ID here
+            sheetsNames: {
+                students: 'Students',
+                teachers: 'Teachers',
+                attendance: 'Attendance',
+                marks: 'Marks',
+                activity: 'Activity'
+            }
+        };
+        
+        // Check if Google Sheets is configured
+        function isGoogleSheetsConfigured() {
+            return GOOGLE_SHEETS_CONFIG.apiKey && GOOGLE_SHEETS_CONFIG.spreadsheetId;
+        }
+        
+        // Sync data to Google Sheets
+        async function syncToGoogleSheets(sheetName, data) {
+            if (!isGoogleSheetsConfigured()) {
+                console.log('Google Sheets not configured, using localStorage only');
+                return;
+            }
+            
+            try {
+                // Convert data to 2D array for Google Sheets
+                const values = Array.isArray(data) ? 
+                    [Object.keys(data[0] || {}), ...data.map(item => Object.values(item))] :
+                    [[JSON.stringify(data)]];
+                
+                const response = await fetch(
+                    `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.spreadsheetId}/values/${sheetName}!A1:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_CONFIG.apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ values })
+                    }
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Failed to sync to Google Sheets');
+                }
+                
+                console.log(`Synced to Google Sheets: ${sheetName}`);
+            } catch (error) {
+                console.error('Google Sheets sync error:', error);
+                showToast('Failed to sync with Google Sheets. Data saved locally.', 'error');
+            }
+        }
+        
+        // Load data from Google Sheets
+        async function loadFromGoogleSheets(sheetName) {
+            if (!isGoogleSheetsConfigured()) {
+                return null;
+            }
+            
+            try {
+                const response = await fetch(
+                    `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.spreadsheetId}/values/${sheetName}?key=${GOOGLE_SHEETS_CONFIG.apiKey}`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load from Google Sheets');
+                }
+                
+                const result = await response.json();
+                const rows = result.values || [];
+                
+                if (rows.length < 2) return [];
+                
+                const headers = rows[0];
+                return rows.slice(1).map(row => {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = row[index] || '';
+                    });
+                    return obj;
+                });
+            } catch (error) {
+                console.error('Google Sheets load error:', error);
+                return null;
+            }
+        }
+        
+        // Enhanced save functions with Google Sheets sync
+        function saveStudentsData(students) {
+            localStorage.setItem('gs_students', JSON.stringify(students));
+            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.students, students);
+        }
+        
+        function saveTeachersData(teachers) {
+            localStorage.setItem('gs_teachers', JSON.stringify(teachers));
+            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.teachers, teachers);
+        }
+        
+        function saveAttendanceData(attendance) {
+            localStorage.setItem('gs_attendance', JSON.stringify(attendance));
+            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.attendance, attendance);
+        }
+        
+        function saveMarksData(marks) {
+            localStorage.setItem('gs_marks', JSON.stringify(marks));
+            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.marks, marks);
+        }
+        
+        console.log('ज्ञानसिंधू क्लासेस Management System Loaded');
+        console.log('Default Admin Login: admin / Capital@123');
+        console.log('Google Sheets Integration: ' + (isGoogleSheetsConfigured() ? 'Enabled' : 'Disabled (using localStorage)'));
+    </script>
+</body>
+</html>

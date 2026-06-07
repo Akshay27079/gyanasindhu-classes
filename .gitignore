@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Editor directories
+.vscode/
+.idea/
+
+# Kiro workspace
+.kiro/
+
+# Package files (if not needed)
+package-lock.json
+
+# Test files (optional - uncomment if you don't want to include tests)
+# tests/
+# vitest.config.js
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Service account credentials (IMPORTANT - NEVER COMMIT!)
+*.json
+!manifest.json
+!package.json
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
