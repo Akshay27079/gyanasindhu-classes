@@ -708,6 +708,8 @@
             document.querySelectorAll('.sidebar-item').forEach(item => {
                 item.addEventListener('click', () => {
                     navigateTo(item.dataset.page);
+                    // Close mobile menu after clicking a menu item
+                    document.getElementById('sidebar').classList.remove('mobile-open');
                 });
             });
         }
@@ -761,6 +763,14 @@
         
         document.getElementById('menuToggle').addEventListener('click', () => {
             document.getElementById('sidebar').classList.toggle('mobile-open');
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.getElementById('mainContent').addEventListener('click', (e) => {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('mobile-open') && window.innerWidth <= 768) {
+                sidebar.classList.remove('mobile-open');
+            }
         });
         
         // ============================================
