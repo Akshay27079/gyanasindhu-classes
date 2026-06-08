@@ -761,13 +761,21 @@
             loginUsername.value = '';
         });
         
-        document.getElementById('menuToggle').addEventListener('click', () => {
+        document.getElementById('menuToggle').addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent click from bubbling to mainContent
             document.getElementById('sidebar').classList.toggle('mobile-open');
         });
         
         // Close sidebar when clicking outside on mobile
         document.getElementById('mainContent').addEventListener('click', (e) => {
             const sidebar = document.getElementById('sidebar');
+            const menuToggle = document.getElementById('menuToggle');
+            
+            // Don't close if clicking the menu toggle button
+            if (e.target === menuToggle || menuToggle.contains(e.target)) {
+                return;
+            }
+            
             if (sidebar.classList.contains('mobile-open') && window.innerWidth <= 768) {
                 sidebar.classList.remove('mobile-open');
             }
