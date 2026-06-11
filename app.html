@@ -499,6 +499,123 @@
 
     <script>
         // ============================================
+        // WHATSAPP INTEGRATION
+        // ============================================
+        
+        // Get WhatsApp configuration
+        function getWhatsAppConfig() {
+            const config = localStorage.getItem('dnyansindhu_whatsapp_config');
+            return config ? JSON.parse(config) : {
+                enabled: false,
+                webhookUrl: '',
+                phoneNumberId: '',
+                accessToken: ''
+            };
+        }
+        
+        // Save WhatsApp configuration
+        function saveWhatsAppConfig(config) {
+            localStorage.setItem('dnyansindhu_whatsapp_config', JSON.stringify(config));
+        }
+        
+        // Get notification log
+        function getNotificationLog() {
+            const log = localStorage.getItem('dnyansindhu_notification_log');
+            return log ? JSON.parse(log) : [];
+        }
+        
+        // Save notification log entry
+        function logNotification(entry) {
+            const log = getNotificationLog();
+            log.unshift({
+                ...entry,
+                timestamp: new Date().toISOString()
+            });
+            // Keep only last 100 entries
+            if (log.length > 100) log.pop();
+            localStorage.setItem('dnyansindhu_notification_log', JSON.stringify(log));
+        }
+        
+        // Send absence notification via WhatsApp
+        async function sendAbsenceNotification(student, date) {
+            const config = getWhatsAppConfig();
+            
+            if (!config.enabled || !config.webhookUrl) {
+                console.log('WhatsApp notifications disabled');
+                return { success: false, error: 'WhatsApp notifications not configured' };
+            }
+            
+            // Check if student has opted out
+            if (student.whatsappOptOut) {
+                console.log('Student opted out of WhatsApp notifications');
+                return { success: false, error: 'Student opted out' };
+            }
+            
+            if (!student.parentPhone) {
+                return { success: false, error: 'Parent phone number not available' };
+            }
+            
+            try {
+                const response = await fetch(config.webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parentPhone: student.parentPhone,
+                        parentName: student.parentName || 'पालक',
+                        studentName: student.name,
+                        date: new Date(date).toLocaleDateString('mr-IN')
+                    })
+                });
+                
+                const result = await response.json();
+                
+                // Log the notification attempt
+                logNotification({
+                    studentId: student.id,
+                    studentName: student.name,
+                    parentPhone: student.parentPhone,
+                    date: date,
+                    success: result.success,
+                    error: result.error || null
+                });
+                
+                return result;
+            } catch (error) {
+                console.error('Error sending WhatsApp notification:', error);
+                logNotification({
+                    studentId: student.id,
+                    studentName: student.name,
+                    parentPhone: student.parentPhone,
+                    date: date,
+                    success: false,
+                    error: error.toString()
+                });
+                return { success: false, error: error.toString() };
+            }
+        }
+        
+        // Resend notification (for failed attempts)
+        async function resendNotification(studentId, date) {
+            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const student = students.find(s => s.id === studentId);
+            
+            if (!student) {
+                showToast('विद्यार्थी सापडला नाही', 'error');
+                return;
+            }
+            
+            showLoading();
+            const result = await sendAbsenceNotification(student, date);
+            hideLoading();
+            
+            if (result.success) {
+                showToast('सूचना पुन्हा पाठवली', 'success');
+            } else {
+                showToast('सूचना पाठवता आली नाही: ' + result.error, 'error');
+            }
+        }
+        
+        // ============================================
         // GLOBAL STATE & UTILITIES
         // ============================================
         
@@ -537,6 +654,14 @@
             if (!phone) return { valid: false, message: 'Phone number is required' };
             if (!phoneRegex.test(phone)) return { valid: false, message: 'Invalid phone number. Must be 10 digits starting with 6-9' };
             return { valid: true };
+        }
+        
+        function validateParentPhone(phone, countryCode = '91') {
+            // Validate parent phone for WhatsApp (with country code)
+            const phoneRegex = /^[6-9]\d{9}$/;
+            if (!phone) return { valid: true }; // Parent phone is optional
+            if (!phoneRegex.test(phone)) return { valid: false, message: 'Invalid phone number. Must be 10 digits starting with 6-9' };
+            return { valid: true, formatted: countryCode + phone };
         }
         
         function validateUsername(username) {
@@ -1146,6 +1271,16 @@
                             <div id="whatsappError" class="validation-error hidden"></div>
                         </div>
                         <div>
+                            <label>पालकांचे नाव</label>
+                            <input type="text" name="parentName" placeholder="पालकांचे संपूर्ण नाव">
+                        </div>
+                        <div>
+                            <label>पालकांचा WhatsApp नंबर</label>
+                            <input type="tel" name="parentPhone" id="parentPhone" placeholder="919175432344">
+                            <div id="parentPhoneError" class="validation-error hidden"></div>
+                            <small class="text-gray-400 text-xs">गैरहजेरीच्या सूचनांसाठी (91 + 10 अंक)</small>
+                        </div>
+                        <div>
                             <label>Class *</label>
                             <select name="class" required>
                                 <option value="">Select</option>
@@ -1203,6 +1338,10 @@
                         <label>Address</label>
                         <textarea name="address" rows="2"></textarea>
                     </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input type="checkbox" name="whatsappOptOut" id="whatsappOptOut">
+                        <label for="whatsappOptOut" class="text-sm cursor-pointer">WhatsApp सूचना नको (Opt-out)</label>
+                    </div>
                     <div class="flex gap-4">
                         <button type="submit" class="btn-gold flex-1">Save</button>
                         <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
@@ -1257,6 +1396,17 @@
                     }
                 }
                 
+                // Validate parent phone if provided
+                const parentPhone = formData.get('parentPhone');
+                if (parentPhone) {
+                    const parentPhoneRegex = /^91[6-9]\d{9}$/;
+                    if (!parentPhoneRegex.test(parentPhone)) {
+                        document.getElementById('parentPhoneError').textContent = 'Invalid format. Use 91 + 10 digits (e.g., 919175432344)';
+                        document.getElementById('parentPhoneError').classList.remove('hidden');
+                        return;
+                    }
+                }
+                
                 // Validate username
                 const username = formData.get('username');
                 const usernameValidation = validateUsername(username);
@@ -1302,6 +1452,9 @@
                     fatherName: formData.get('fatherName'),
                     phone: phone,
                     whatsapp: whatsapp,
+                    parentName: formData.get('parentName') || '',
+                    parentPhone: parentPhone || '',
+                    whatsappOptOut: formData.get('whatsappOptOut') === 'on',
                     class: formData.get('class'),
                     stream: formData.get('stream'),
                     address: formData.get('address'),
@@ -1348,6 +1501,16 @@
                             <label>WhatsApp</label>
                             <input type="tel" name="whatsapp" id="studentWhatsapp" value="${student.whatsapp || ''}">
                             <div id="whatsappError" class="validation-error hidden"></div>
+                        </div>
+                        <div>
+                            <label>पालकांचे नाव</label>
+                            <input type="text" name="parentName" value="${student.parentName || ''}" placeholder="पालकांचे संपूर्ण नाव">
+                        </div>
+                        <div>
+                            <label>पालकांचा WhatsApp नंबर</label>
+                            <input type="tel" name="parentPhone" id="parentPhone" value="${student.parentPhone || ''}" placeholder="919175432344">
+                            <div id="parentPhoneError" class="validation-error hidden"></div>
+                            <small class="text-gray-400 text-xs">गैरहजेरीच्या सूचनांसाठी (91 + 10 अंक)</small>
                         </div>
                         <div>
                             <label>Class *</label>
@@ -1406,6 +1569,10 @@
                         <label>Address</label>
                         <textarea name="address" rows="2">${student.address || ''}</textarea>
                     </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input type="checkbox" name="whatsappOptOut" id="whatsappOptOut" ${student.whatsappOptOut ? 'checked' : ''}>
+                        <label for="whatsappOptOut" class="text-sm cursor-pointer">WhatsApp सूचना नको (Opt-out)</label>
+                    </div>
                     <div class="flex gap-4">
                         <button type="submit" class="btn-gold flex-1">Update</button>
                         <button type="button" onclick="closeModal()" class="btn-gold flex-1">Cancel</button>
@@ -1460,6 +1627,17 @@
                     }
                 }
                 
+                // Validate parent phone if provided
+                const parentPhone = formData.get('parentPhone');
+                if (parentPhone) {
+                    const parentPhoneRegex = /^91[6-9]\d{9}$/;
+                    if (!parentPhoneRegex.test(parentPhone)) {
+                        document.getElementById('parentPhoneError').textContent = 'Invalid format. Use 91 + 10 digits (e.g., 919175432344)';
+                        document.getElementById('parentPhoneError').classList.remove('hidden');
+                        return;
+                    }
+                }
+                
                 // Validate username
                 const username = formData.get('username');
                 const usernameValidation = validateUsername(username);
@@ -1505,6 +1683,9 @@
                     fatherName: formData.get('fatherName'),
                     phone: phone,
                     whatsapp: whatsapp,
+                    parentName: formData.get('parentName') || '',
+                    parentPhone: parentPhone || '',
+                    whatsappOptOut: formData.get('whatsappOptOut') === 'on',
                     class: formData.get('class'),
                     stream: formData.get('stream'),
                     address: formData.get('address'),
@@ -2154,6 +2335,18 @@
             const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
             allAttendance.push(attendance);
             saveAttendanceData(allAttendance);
+            
+            // Send WhatsApp notifications for absent students
+            const config = getWhatsAppConfig();
+            if (config.enabled) {
+                const absentRecords = records.filter(r => !r.present);
+                absentRecords.forEach(async (record) => {
+                    const student = students.find(s => s.id === record.studentId);
+                    if (student && student.parentPhone && !student.whatsappOptOut) {
+                        await sendAbsenceNotification(student, date);
+                    }
+                });
+            }
             
             hideLoading();
             logActivity(`Marked attendance for class ${selectedClass} on ${date}`);
@@ -2972,9 +3165,57 @@
         function renderAdminSettings() {
             document.getElementById('pageTitle').textContent = 'Settings';
             
+            const config = getWhatsAppConfig();
+            
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- WhatsApp Configuration -->
+                    <div class="glass-card p-6 lg:col-span-2">
+                        <h3 class="text-xl font-bold mb-4 gold-accent">
+                            <i class="fab fa-whatsapp mr-2"></i>WhatsApp Absence Notifications
+                        </h3>
+                        <form id="whatsappConfigForm" class="space-y-4">
+                            <div class="flex items-center gap-2 mb-4">
+                                <input type="checkbox" id="whatsappEnabled" name="enabled" ${config.enabled ? 'checked' : ''}>
+                                <label for="whatsappEnabled" class="cursor-pointer font-bold">सूचना सक्षम करा (Enable Notifications)</label>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <label>Webhook URL (Google Apps Script) *</label>
+                                    <input type="url" name="webhookUrl" value="${config.webhookUrl || ''}" placeholder="https://script.google.com/macros/s/..." required>
+                                    <small class="text-gray-400 text-xs">WHATSAPP_SETUP_GUIDE.md पहा</small>
+                                </div>
+                                <div>
+                                    <label>Phone Number ID</label>
+                                    <input type="text" name="phoneNumberId" value="${config.phoneNumberId || ''}" placeholder="123456789012345">
+                                    <small class="text-gray-400 text-xs">Meta Business से</small>
+                                </div>
+                                <div>
+                                    <label>Access Token</label>
+                                    <input type="password" name="accessToken" value="${config.accessToken || ''}" placeholder="EAAxxxxxxxx...">
+                                    <small class="text-gray-400 text-xs">Permanent Token</small>
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <button type="submit" class="btn-gold flex-1">
+                                    <i class="fas fa-save mr-2"></i>Save Configuration
+                                </button>
+                                <button type="button" onclick="testWhatsAppConnection()" class="btn-gold flex-1">
+                                    <i class="fas fa-vial mr-2"></i>Test Connection
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Notification Log -->
+                        <div class="mt-6 border-t border-gray-700 pt-6">
+                            <h4 class="font-bold mb-3 gold-accent">Notification Log (Last 10)</h4>
+                            <div id="notificationLog" class="overflow-x-auto max-h-64 overflow-y-auto">
+                                ${renderNotificationLog()}
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="glass-card p-6">
                         <h3 class="text-xl font-bold mb-4 gold-accent">Change Admin Password</h3>
                         <form id="changePasswordForm" class="space-y-4">
@@ -3017,6 +3258,23 @@
                 </div>
             `;
             
+            // WhatsApp config form handler
+            document.getElementById('whatsappConfigForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                
+                const newConfig = {
+                    enabled: formData.get('enabled') === 'on',
+                    webhookUrl: formData.get('webhookUrl'),
+                    phoneNumberId: formData.get('phoneNumberId'),
+                    accessToken: formData.get('accessToken')
+                };
+                
+                saveWhatsAppConfig(newConfig);
+                showToast('WhatsApp configuration saved successfully', 'success');
+                logActivity('Updated WhatsApp configuration');
+            });
+            
             document.getElementById('changePasswordForm').addEventListener('submit', (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
@@ -3041,6 +3299,86 @@
                 showToast('Password changed successfully');
                 e.target.reset();
             });
+        }
+        
+        function renderNotificationLog() {
+            const log = getNotificationLog().slice(0, 10);
+            
+            if (log.length === 0) {
+                return '<p class="text-gray-400">No notifications sent yet</p>';
+            }
+            
+            return `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Time</th>
+                            <th class="text-left">Student</th>
+                            <th class="text-left">Phone</th>
+                            <th class="text-left">Status</th>
+                            <th class="text-left">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${log.map(entry => `
+                            <tr>
+                                <td>${new Date(entry.timestamp).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</td>
+                                <td>${entry.studentName}</td>
+                                <td>${entry.parentPhone}</td>
+                                <td>
+                                    ${entry.success 
+                                        ? '<span class="text-green-400"><i class="fas fa-check-circle"></i> Sent</span>' 
+                                        : '<span class="text-red-400"><i class="fas fa-times-circle"></i> Failed</span>'}
+                                </td>
+                                <td>
+                                    ${!entry.success 
+                                        ? `<button onclick="resendNotification('${entry.studentId}', '${entry.date}')" class="text-blue-400 hover:text-blue-300 text-xs">
+                                            <i class="fas fa-redo mr-1"></i>Resend
+                                        </button>` 
+                                        : '-'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        async function testWhatsAppConnection() {
+            const config = getWhatsAppConfig();
+            
+            if (!config.webhookUrl) {
+                showToast('कृपया Webhook URL भरा', 'error');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(config.webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        test: true,
+                        parentPhone: '919175432344',
+                        parentName: 'Test Parent',
+                        studentName: 'Test Student',
+                        date: new Date().toLocaleDateString('mr-IN')
+                    })
+                });
+                
+                const result = await response.json();
+                hideLoading();
+                
+                if (result.success || response.ok) {
+                    showToast('✅ Connection successful! Webhook is working.', 'success');
+                } else {
+                    showToast('❌ Connection failed: ' + (result.message || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('❌ Connection error: ' + error.message, 'error');
+            }
         }
         
         function exportAllData() {
@@ -3207,6 +3545,8 @@
                 present: document.querySelector(`input[name="attendance_${s.id}"]:checked`).value === 'present'
             }));
             
+            showLoading();
+            
             const attendance = {
                 id: uuid(),
                 date,
@@ -3220,6 +3560,19 @@
             allAttendance.push(attendance);
             saveAttendanceData(allAttendance);
             
+            // Send WhatsApp notifications for absent students
+            const config = getWhatsAppConfig();
+            if (config.enabled) {
+                const absentRecords = records.filter(r => !r.present);
+                absentRecords.forEach(async (record) => {
+                    const student = students.find(s => s.id === record.studentId);
+                    if (student && student.parentPhone && !student.whatsappOptOut) {
+                        await sendAbsenceNotification(student, date);
+                    }
+                });
+            }
+            
+            hideLoading();
             logActivity(`Teacher ${currentSession.name} marked attendance for class ${selectedClass} on ${date}`);
             showToast('Attendance saved successfully');
             renderTeacherAttendance();
