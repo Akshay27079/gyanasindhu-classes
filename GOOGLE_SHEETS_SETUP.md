@@ -7,8 +7,11 @@ This guide will help you configure Google Sheets as the backend database for the
 The app uses **Google Apps Script** as a webhook/proxy to securely write data to Google Sheets. This approach:
 - ✅ Works from client-side without exposing API keys
 - ✅ Handles authentication securely
-- ✅ Allows CORS requests from your domain
+- ✅ **Includes CORS support** for cross-domain requests (dnyansindhu.in → script.google.com)
+- ✅ Handles browser preflight (OPTIONS) requests properly
 - ✅ Provides real-time data synchronization
+
+**Latest Update (v2.1):** Added comprehensive CORS support to fix "Access-Control-Allow-Origin" errors when accessing from dnyansindhu.in domain.
 
 ## Prerequisites
 - A Google account
@@ -66,16 +69,35 @@ action | time
 ## Step 3: Create Google Apps Script
 
 1. In your spreadsheet, click **Extensions** > **Apps Script**
+2. Open the repository file `Code.gs`, copy its complete contents into the Apps Script editor, and save it.
+3. Do not use the older inline sample below. `Code.gs` is the current version and includes:
+   - fresh reads for every login and page refresh
+   - locked record-level create, update, and delete operations
+   - all login/password fields required by the app
+   - CORS-safe requests without unsupported `TextOutput.setHeader()` calls
+
+> **Important:** After changing `Code.gs`, create a **new web app deployment version**. Editing the script alone does not update an existing deployment.
 2. Delete the default `function myFunction() {}` code
 3. **Copy and paste** the following complete script:
+
+> ⚠️ **IMPORTANT:** This script includes CORS support! If you're updating from an older version, make sure to:
+> - Copy the ENTIRE script below (don't miss the CORS functions at the top)
+> - Redeploy as a NEW version (see Step 4)
+> - Clear your browser cache after redeploying
 
 ```javascript
 // ============================================
 // GOOGLE APPS SCRIPT FOR DNYANSINDHU CLASSES
+// WITH CORS SUPPORT
 // ============================================
 
 // Configuration
 const SPREADSHEET_ID = SpreadsheetApp.getActiveSpreadsheet().getId();
+
+// Handle GET requests (for health checks and OPTIONS preflight)
+function doGet(e) {
+  return handleCORS();
+}
 
 // Main function to handle POST requests from the web app
 function doPost(e) {
@@ -87,23 +109,54 @@ function doPost(e) {
     
     Logger.log('Received request: ' + action + ' for sheet: ' + sheetName);
     
+    let response;
     if (action === 'write') {
-      return writeData(sheetName, data.records);
+      response = writeData(sheetName, data.records);
     } else if (action === 'read') {
-      return readData(sheetName);
+      response = readData(sheetName);
     } else {
-      return ContentService.createTextOutput(JSON.stringify({
+      response = createResponse({
         success: false,
         error: 'Invalid action: ' + action
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
+    
+    // Add CORS headers to response
+    return addCORSHeaders(response);
+    
   } catch (error) {
     Logger.log('Error in doPost: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({
+    return addCORSHeaders(createResponse({
       success: false,
       error: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    }));
   }
+}
+
+// Handle CORS preflight requests
+function handleCORS() {
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: true, message: 'CORS OK' }))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    .setHeader('Access-Control-Max-Age', '3600');
+}
+
+// Add CORS headers to any response
+function addCORSHeaders(response) {
+  return response
+    .setHeader('Access-Control-Allow-Origin', '*')
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+// Create a JSON response
+function createResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // Write data to a sheet
@@ -130,11 +183,11 @@ function writeData(sheetName, records) {
     // Convert records to 2D array
     if (!records || records.length === 0) {
       Logger.log('No records to write for ' + sheetName);
-      return ContentService.createTextOutput(JSON.stringify({
+      return createResponse({
         success: true,
         message: 'No data to write',
         rowsWritten: 0
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
     
     const rows = records.map(record => objectToArray(record, sheetName));
@@ -146,19 +199,19 @@ function writeData(sheetName, records) {
     
     Logger.log('Successfully wrote ' + rows.length + ' rows to ' + sheetName);
     
-    return ContentService.createTextOutput(JSON.stringify({
+    return createResponse({
       success: true,
       message: 'Data written successfully',
       rowsWritten: rows.length,
       timestamp: new Date().toISOString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
     
   } catch (error) {
     Logger.log('Error in writeData: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({
+    return createResponse({
       success: false,
       error: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
 }
 
@@ -169,20 +222,20 @@ function readData(sheetName) {
     const sheet = ss.getSheetByName(sheetName);
     
     if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify({
+      return createResponse({
         success: false,
         error: 'Sheet not found: ' + sheetName
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
     
     const data = sheet.getDataRange().getValues();
     
     if (data.length <= 1) {
       // Only headers or empty
-      return ContentService.createTextOutput(JSON.stringify({
+      return createResponse({
         success: true,
         data: []
-      })).setMimeType(ContentService.MimeType.JSON);
+      });
     }
     
     // Convert to objects
@@ -195,17 +248,17 @@ function readData(sheetName) {
       return obj;
     });
     
-    return ContentService.createTextOutput(JSON.stringify({
+    return createResponse({
       success: true,
       data: records
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
     
   } catch (error) {
     Logger.log('Error in readData: ' + error.toString());
-    return ContentService.createTextOutput(JSON.stringify({
+    return createResponse({
       success: false,
       error: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
 }
 
@@ -283,7 +336,7 @@ function objectToArray(obj, sheetName) {
 1. Click **Deploy** > **New deployment**
 2. Click the gear icon ⚙️ and select **Web app**
 3. Configure:
-   - **Description**: `Dnyansindhu Classes Sync API`
+   - **Description**: `Dnyansindhu Classes Sync API v2 - CORS Enabled`
    - **Execute as**: **Me** (your account)
    - **Who has access**: **Anyone** (important!)
 4. Click **Deploy**
@@ -296,6 +349,14 @@ function objectToArray(obj, sheetName) {
    ```
    https://script.google.com/macros/s/AKfycby.../exec
    ```
+
+⚠️ **IMPORTANT - If Updating Existing Script:**
+- After making code changes, you MUST create a **NEW deployment**
+- Simply saving code is NOT enough - the old deployment URL won't get the changes
+- Go to **Deploy** > **Manage deployments** > Click **✎ Edit** on your active deployment
+- Change version to **New version** in the dropdown
+- Click **Deploy**
+- The URL remains the same but now uses your updated code
 
 ---
 
@@ -340,6 +401,83 @@ App (Browser) → Google Apps Script (Proxy) → Google Sheets
 
 ## Troubleshooting
 
+### ❌ CORS Error: "No 'Access-Control-Allow-Origin' header"
+
+**Full Error:**
+```
+Access to fetch at 'https://script.google.com/.../exec' from origin 'https://dnyansindhu.in' 
+has been blocked by CORS policy: Response to preflight request doesn't pass access control check: 
+No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+**What is CORS?**
+CORS (Cross-Origin Resource Security) is a browser security feature that blocks websites from making requests to different domains unless the server explicitly allows it. When your website (dnyansindhu.in) tries to access Google Apps Script (script.google.com), the browser first sends a "preflight" OPTIONS request to check if it's allowed.
+
+**Why This Happens:**
+- Google Apps Script doesn't automatically handle OPTIONS requests (preflight checks)
+- The old script code only handled POST requests
+- Without handling OPTIONS, the browser blocks the actual POST request
+
+**How to Fix:**
+
+1. **Update Your Apps Script Code:**
+   - Make sure you're using the CORS-enabled script code from Step 3 above
+   - The key additions are:
+     - `doGet()` function to handle OPTIONS requests
+     - `handleCORS()` function that returns proper CORS headers
+     - `addCORSHeaders()` function that adds CORS headers to all responses
+
+2. **Redeploy the Script:**
+   - ⚠️ **CRITICAL:** Just saving code is NOT enough!
+   - Go to **Deploy** > **Manage deployments**
+   - Click the **✎ Edit** icon on your active deployment
+   - In the "Version" dropdown, select **New version**
+   - Add description: `CORS fix applied`
+   - Click **Deploy**
+   - The URL stays the same, but now uses your updated code
+
+3. **Clear Browser Cache:**
+   - Press `Ctrl + Shift + Delete` (Windows) or `Cmd + Shift + Delete` (Mac)
+   - Select "Cached images and files"
+   - Click **Clear data**
+   - Or use **Incognito/Private mode** to test
+
+4. **Verify CORS Headers:**
+   - Open your website (dnyansindhu.in)
+   - Open Browser DevTools (F12)
+   - Go to **Network** tab
+   - Click **Test Connection** in Settings
+   - Look for the request to script.google.com
+   - Click on it and check **Response Headers**:
+     - Should see: `Access-Control-Allow-Origin: *`
+     - Should see: `Access-Control-Allow-Methods: GET, POST, OPTIONS`
+     - Should see: `Access-Control-Allow-Headers: Content-Type`
+
+**Still Not Working?**
+
+Try this test in Browser Console (F12):
+```javascript
+fetch('YOUR_SCRIPT_URL_HERE', {
+  method: 'OPTIONS',
+  headers: { 'Content-Type': 'application/json' }
+})
+.then(r => r.json())
+.then(console.log)
+.catch(console.error);
+```
+
+**Expected Result:** 
+```json
+{"success": true, "message": "CORS OK"}
+```
+
+If you see CORS error, the script isn't updated:
+- Double-check you created a **new version** deployment
+- Try creating a completely **new deployment** (not editing existing)
+- Wait 1-2 minutes for Google to propagate changes
+
+---
+
 ### ❌ "Connection test failed"
 
 **Check:**
@@ -353,12 +491,7 @@ App (Browser) → Google Apps Script (Proxy) → Google Sheets
 - Create a **new deployment** (don't edit the old one)
 - Copy the new URL and update in app settings
 
-### ❌ "CORS error" in browser console
-
-**Fix:**
-- Make sure the Apps Script is deployed as **Web App**
-- Ensure "Who has access" is set to **Anyone**
-- Try using incognito mode to rule out browser cache
+---
 
 ### ❌ Data not appearing in sheets
 
@@ -373,6 +506,8 @@ App (Browser) → Google Apps Script (Proxy) → Google Sheets
 - Ensure sheet names match exactly: `Students`, `Teachers`, etc.
 - Check that records are being sent (look at console logs starting with 🔄)
 
+---
+
 ### ❌ "Authorization required" error
 
 **Fix:**
@@ -381,12 +516,16 @@ App (Browser) → Google Apps Script (Proxy) → Google Sheets
 3. Click the test link - it will ask for authorization
 4. Authorize and then go back to your app
 
+---
+
 ### ⚠️ Sync is slow
 
 **Explanation:** 
 - Google Apps Script can take 1-3 seconds per request
 - This is normal for free tier
 - Data is saved to localStorage first, so the app remains fast
+
+---
 
 ### ❌ "Service invoked too many times"
 
@@ -396,6 +535,38 @@ App (Browser) → Google Apps Script (Proxy) → Google Sheets
 - This shouldn't happen in normal use
 - If testing, avoid repeated sync operations
 - Consider batch updates
+
+---
+
+### 🔍 How to Check If CORS Is Working
+
+**Method 1: Browser DevTools**
+1. Open your site (dnyansindhu.in)
+2. Press F12 to open DevTools
+3. Go to **Network** tab
+4. Click "Test Connection" in Settings
+5. Find the request to `script.google.com`
+6. Click on it
+7. Check **Response Headers** tab
+8. You should see:
+   ```
+   access-control-allow-origin: *
+   access-control-allow-methods: GET, POST, OPTIONS
+   access-control-allow-headers: Content-Type
+   ```
+
+**Method 2: Direct Test**
+Visit this URL in browser (replace with your script URL):
+```
+https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
+```
+
+You should see:
+```json
+{"success":true,"message":"CORS OK"}
+```
+
+If you see this, CORS is working! ✅
 
 ---
 
@@ -413,34 +584,120 @@ App (Browser) → Google Apps Script (Proxy) → Google Sheets
 
 ---
 
-## Advanced: Add IP Restrictions (Optional)
+---
 
-To restrict webhook access to specific domains:
+## Quick Reference: Redeploying After Code Changes
 
-1. In Apps Script, add this at the top of `doPost`:
+If you update the Apps Script code (for bug fixes, CORS fixes, etc.):
+
+### Option 1: Update Existing Deployment (Recommended)
+1. Go to **Deploy** > **Manage deployments**
+2. Click **✎ Edit** on the active deployment
+3. Change "Version" to **New version**
+4. Add description of changes
+5. Click **Deploy**
+6. ✅ URL stays the same - no need to update app settings
+
+### Option 2: Create New Deployment
+1. Go to **Deploy** > **New deployment**
+2. Select **Web app**
+3. Configure as before
+4. Copy new URL
+5. ⚠️ Update URL in app settings
+
+### After Redeployment:
+- Clear browser cache or test in incognito mode
+- Test connection in app Settings
+- Check browser console (F12) for errors
+
+---
+
+## Testing Checklist
+
+After setup or changes, verify:
+
+- [ ] Apps Script saved successfully
+- [ ] Deployed as Web App with "Anyone" access
+- [ ] Web App URL copied correctly
+- [ ] URL pasted in app Settings
+- [ ] "Test Connection" shows success
+- [ ] No CORS errors in browser console (F12)
+- [ ] Test data appears in Google Sheets
+- [ ] Sync indicator shows "Synced ✓"
+
+---
+
+## Advanced: Restrict to Specific Domain (Optional)
+
+By default, the script allows requests from ANY origin (`Access-Control-Allow-Origin: *`). For better security, you can restrict it to only your domain:
+
+### Method 1: Single Domain
+
+Replace the `handleCORS()` function with:
 
 ```javascript
-function doPost(e) {
-  // Restrict to specific domains
+function handleCORS(origin) {
+  const allowedOrigin = 'https://dnyansindhu.in';
+  const responseOrigin = (origin === allowedOrigin) ? allowedOrigin : '';
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: true, message: 'CORS OK' }))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', responseOrigin || allowedOrigin)
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    .setHeader('Access-Control-Max-Age', '3600');
+}
+
+function addCORSHeaders(response, origin) {
+  const allowedOrigin = 'https://dnyansindhu.in';
+  const responseOrigin = (origin === allowedOrigin) ? allowedOrigin : '';
+  
+  return response
+    .setHeader('Access-Control-Allow-Origin', responseOrigin || allowedOrigin)
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+```
+
+### Method 2: Multiple Domains (for testing + production)
+
+```javascript
+function handleCORS(origin) {
   const allowedOrigins = [
+    'https://dnyansindhu.in',
     'https://yourusername.github.io',
     'http://localhost:5500'
   ];
   
-  // Check origin if available
-  const origin = e.parameter.origin || '';
-  if (origin && !allowedOrigins.some(allowed => origin.startsWith(allowed))) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'Unauthorized origin'
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
+  const responseOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
   
-  // ... rest of the code
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: true, message: 'CORS OK' }))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader('Access-Control-Allow-Origin', responseOrigin)
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    .setHeader('Access-Control-Max-Age', '3600');
+}
+
+function addCORSHeaders(response, origin) {
+  const allowedOrigins = [
+    'https://dnyansindhu.in',
+    'https://yourusername.github.io',
+    'http://localhost:5500'
+  ];
+  
+  const responseOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  
+  return response
+    .setHeader('Access-Control-Allow-Origin', responseOrigin)
+    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 ```
 
-2. Deploy as a **new deployment**
+**Note:** After making these changes, you must **redeploy** (see Quick Reference section above).
 
 ---
 
@@ -480,5 +737,12 @@ If you prefer not to use Google Sheets:
 
 ## Changelog
 
+- **v2.1 (CORS Fix)**: 
+  - ✅ Added `doGet()` to handle OPTIONS preflight requests
+  - ✅ Added `handleCORS()` function with proper CORS headers
+  - ✅ Added `addCORSHeaders()` helper to ensure all responses include CORS headers
+  - ✅ Fixed "Access-Control-Allow-Origin" errors from dnyansindhu.in
+  - ✅ Added comprehensive CORS troubleshooting section
+  - ✅ Added redeployment instructions
 - **v2.0**: Added Google Apps Script webhook approach
 - **v1.0**: Initial setup with direct API (deprecated)
