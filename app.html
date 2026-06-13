@@ -631,7 +631,7 @@
                     throw new Error(`Webhook returned invalid JSON (${response.status})`);
                 }
                 if (!response.ok || !result.success) {
-                    throw new Error(result.error || result.message || `Webhook failed with HTTP ${response.status}`);
+                    throw new Error(formatWhatsAppWebhookError(result.error || result.message || `Webhook failed with HTTP ${response.status}`));
                 }
                 
                 // Log the notification attempt
@@ -698,6 +698,14 @@
                 `WhatsApp: ${result.sent} sent, ${result.failed} failed, ${result.skipped} skipped.`,
                 result.failed ? 'error' : 'warning'
             );
+        }
+
+        function formatWhatsAppWebhookError(errorMessage) {
+            const message = String(errorMessage || 'Unknown error');
+            if (message.includes('#132001')) {
+                return 'WhatsApp template not found for this language. In the WhatsApp Apps Script, set TEMPLATE_NAME and TEMPLATE_LANGUAGE exactly as approved in Meta Business.';
+            }
+            return message;
         }
         
         // Resend notification (for failed attempts)
@@ -2507,21 +2515,29 @@
         }
         
         async function saveAttendance() {
+            console.log('🔵 [ATTENDANCE] Starting saveAttendance()');
+            
             const date = document.getElementById('attendanceDate').value;
             const selectedClass = document.getElementById('attendanceClass').value;
+            console.log(`🔵 [ATTENDANCE] Date: ${date}, Class: ${selectedClass}`);
             
             // Check for duplicate attendance
             if (checkDuplicateAttendance(date, selectedClass)) {
+                console.warn('⚠️ [ATTENDANCE] Duplicate attendance detected');
                 showToast('Attendance for this class on this date already exists', 'error');
                 return;
             }
             
             const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            console.log(`🔵 [ATTENDANCE] Found ${students.length} students in class ${selectedClass}`);
             
             const records = students.map(s => ({
                 studentId: s.id,
                 present: document.querySelector(`input[name="attendance_${s.id}"]:checked`).value === 'present'
             }));
+            
+            const absentCount = records.filter(r => !r.present).length;
+            console.log(`🔵 [ATTENDANCE] Present: ${records.length - absentCount}, Absent: ${absentCount}`);
             
             showLoading();
             
@@ -2534,12 +2550,23 @@
                 savedAt: new Date().toISOString()
             };
             
+            console.log('🔵 [ATTENDANCE] Saving attendance to localStorage and Google Sheets...');
             const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
             allAttendance.push(attendance);
-            const saved = await saveAttendanceData(allAttendance);
-            if (!saved) {
+            
+            try {
+                const saved = await saveAttendanceData(allAttendance);
+                if (!saved) {
+                    console.error('❌ [ATTENDANCE] Failed to save to Google Sheets');
+                    hideLoading();
+                    showToast('Attendance was not saved to Google Sheets. Please try again.', 'error');
+                    return;
+                }
+                console.log('✅ [ATTENDANCE] Attendance saved successfully');
+            } catch (error) {
+                console.error('❌ [ATTENDANCE] Error saving attendance:', error);
                 hideLoading();
-                showToast('Attendance was not saved to Google Sheets. Please try again.', 'error');
+                showToast('Error saving attendance: ' + error.message, 'error');
                 return;
             }
             
@@ -2547,7 +2574,15 @@
             const config = getWhatsAppConfig();
             let notificationResult = null;
             if (config.enabled) {
-                notificationResult = await sendAbsenceNotifications(students, records, date);
+                console.log('🔵 [WHATSAPP] WhatsApp notifications enabled, sending to absent students...');
+                try {
+                    notificationResult = await sendAbsenceNotifications(students, records, date);
+                    console.log('✅ [WHATSAPP] Notification batch completed:', notificationResult);
+                } catch (error) {
+                    console.error('❌ [WHATSAPP] Error sending notifications:', error);
+                }
+            } else {
+                console.log('⚠️ [WHATSAPP] WhatsApp notifications disabled');
             }
             
             hideLoading();
@@ -2555,6 +2590,7 @@
             showToast('Attendance saved successfully');
             if (notificationResult) showAbsenceNotificationResult(notificationResult);
             renderAdminAttendance();
+            console.log('✅ [ATTENDANCE] saveAttendance() completed');
         }
         
         function loadPastAttendance() {
@@ -3611,6 +3647,7 @@
         async function testWhatsAppConnection() {
             const config = getWhatsAppConfig();
             
+            
             if (!config.webhookUrl) {
                 showToast('कृपया Webhook URL भरा', 'error');
                 return;
@@ -3623,16 +3660,17 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
-                        test: true,
-                        parentPhone: '919175432344',
+                       //// test: true,
+                       // parentPhone: '919175432344',
                         parentName: 'Test Parent',
                         studentName: 'Test Student',
                         date: new Date().toLocaleDateString('mr-IN')
                     }),
                     redirect: 'follow'
                 });
-                
+                console.log(response);
                 const responseText = await response.text();
+                console.log(responseText);
                 let result;
                 try {
                     result = JSON.parse(responseText);
@@ -3644,7 +3682,7 @@
                 if (response.ok && result.success) {
                     showToast('✅ Connection successful! Webhook is working.', 'success');
                 } else {
-                    showToast('❌ Connection failed: ' + (result.error || result.message || `HTTP ${response.status}`), 'error');
+                    showToast('❌ Connection failed: ' + formatWhatsAppWebhookError(result.error || result.message || `HTTP ${response.status}`), 'error');
                 }
             } catch (error) {
                 hideLoading();

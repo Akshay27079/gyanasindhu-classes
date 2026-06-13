@@ -95,7 +95,10 @@ const WHATSAPP_CONFIG = {
   PHONE_NUMBER_ID: "YOUR_PHONE_NUMBER_ID", // Example: 123456789012345
   ACCESS_TOKEN: "YOUR_PERMANENT_ACCESS_TOKEN", // Meta Business से generate करें
   API_VERSION: "v18.0",
-  TEMPLATE_NAME: "absence_notification_marathi"
+  // Must exactly match the approved template name in Meta Business.
+  TEMPLATE_NAME: "absence_notification_marathi",
+  // Must exactly match the approved template language, for example: "mr", "en_US", "hi".
+  TEMPLATE_LANGUAGE: "mr"
 };
 
 /**
@@ -139,7 +142,7 @@ function sendWhatsAppMessage(data) {
       type: "template",
       template: {
         name: WHATSAPP_CONFIG.TEMPLATE_NAME,
-        language: { code: "mr" }, // Marathi
+        language: { code: WHATSAPP_CONFIG.TEMPLATE_LANGUAGE },
         components: [
           {
             type: "body",
@@ -496,6 +499,28 @@ ACCESS_TOKEN: "YOUR_PERMANENT_ACCESS_TOKEN"
 अगर message content बदलना हो:
 1. Meta Business में नया template बनाएं
 2. Approval मिलने के बाद Google Apps Script में template name update करें
+
+### ❌ Error: `(#132001) Template name does not exist in the translation`
+
+इसका मतलब WhatsApp API चल रहा है, लेकिन Meta Business में इस **template name + language code** की approved translation नहीं मिली.
+
+Fix:
+1. Meta Business → WhatsApp Manager → Message templates खोलें.
+2. Approved template का exact **Name** copy करें.
+3. Approved template की exact **Language** देखें.
+4. Apps Script में update करें:
+   ```javascript
+   TEMPLATE_NAME: "your_exact_template_name",
+   TEMPLATE_LANGUAGE: "your_exact_language_code" // example: "mr" or "en_US"
+   ```
+5. Apps Script को **New version** के रूप में redeploy करें.
+
+Example: अगर Meta में template `absence_notification` language `en_US` में approved है, तो:
+
+```javascript
+TEMPLATE_NAME: "absence_notification",
+TEMPLATE_LANGUAGE: "en_US"
+```
 
 ---
 

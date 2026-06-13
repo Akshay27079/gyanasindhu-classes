@@ -608,6 +608,51 @@
             flex-wrap: wrap;
         }
 
+        /* ── PRIVACY POLICY ── */
+        #privacy {
+            background: rgba(10,37,69,0.22);
+        }
+        .privacy-card {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border: 1px solid rgba(245,166,35,0.16);
+            border-radius: 24px;
+            padding: clamp(24px, 4vw, 42px);
+            box-shadow: 0 24px 70px rgba(0,0,0,0.25);
+        }
+        .privacy-card p {
+            color: var(--muted);
+            line-height: 1.8;
+            margin-bottom: 18px;
+        }
+        .privacy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin-top: 24px;
+        }
+        .privacy-item {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .privacy-item h4 {
+            color: var(--gold);
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        .privacy-item p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .privacy-updated {
+            color: rgba(139,170,200,0.65);
+            font-size: 0.85rem;
+            margin-top: 22px;
+        }
+
         /* ── FOOTER ── */
         footer {
             background: rgba(2, 10, 22, 0.95);
@@ -823,6 +868,7 @@
         <li><a href="#about">आमच्याबद्दल</a></li>
         <li><a href="#courses">कोर्सेस</a></li>
         <li><a href="#features">वैशिष्ट्ये</a></li>
+        <li><a href="#privacy">गोपनीयता</a></li>
         <li><a href="#contact">संपर्क</a></li>
         <li><a href="app.html">व्यवस्थापन</a></li>
     </ul>
@@ -833,6 +879,7 @@
     <a href="#about" onclick="toggleMobile()">आमच्याबद्दल</a>
     <a href="#courses" onclick="toggleMobile()">कोर्सेस</a>
     <a href="#features" onclick="toggleMobile()">वैशिष्ट्ये</a>
+    <a href="#privacy" onclick="toggleMobile()">गोपनीयता</a>
     <a href="#contact" onclick="toggleMobile()">संपर्क</a>
     <a href="app.html" onclick="toggleMobile()">व्यवस्थापन</a>
     <a href="tel:7218432344" class="btn-primary" style="text-align:center;">कॉल करा</a>
@@ -1010,6 +1057,41 @@
     </div>
 </div>
 
+<!-- Privacy Policy -->
+<section id="privacy">
+    <div class="section-header reveal">
+        <div class="section-tag">गोपनीयता धोरण</div>
+        <h2 class="section-title">आपली माहिती <span>सुरक्षित</span></h2>
+        <div class="section-line"></div>
+    </div>
+    <div class="privacy-card reveal">
+        <p>
+            ज्ञानसिंधू क्लासेस, नेरळ येथे प्रवेश चौकशी, संपर्क, पालक संवाद आणि शैक्षणिक व्यवस्थापनासाठी
+            विद्यार्थ्यांची व पालकांची आवश्यक माहिती गोळा केली जाते. ही माहिती केवळ शैक्षणिक सेवा,
+            प्रवेश प्रक्रिया, उपस्थिती/गुण संबंधित सूचना आणि संपर्कासाठी वापरली जाते.
+        </p>
+        <div class="privacy-grid">
+            <div class="privacy-item">
+                <h4>आम्ही कोणती माहिती घेतो?</h4>
+                <p>विद्यार्थ्याचे नाव, इयत्ता, मोबाईल नंबर, पालकांचे नाव/नंबर, प्रवेश व शैक्षणिक तपशील.</p>
+            </div>
+            <div class="privacy-item">
+                <h4>माहितीचा वापर</h4>
+                <p>प्रवेश चौकशी, वर्ग/उपस्थिती सूचना, पालक संपर्क, फी व शैक्षणिक अपडेटसाठी.</p>
+            </div>
+            <div class="privacy-item">
+                <h4>डेटा शेअरिंग</h4>
+                <p>आपली वैयक्तिक माहिती विकली जात नाही. आवश्यकतेनुसार WhatsApp/फोनद्वारे पालकांशी संपर्क केला जातो.</p>
+            </div>
+            <div class="privacy-item">
+                <h4>आपले अधिकार</h4>
+                <p>आपली माहिती दुरुस्त, अपडेट किंवा काढून टाकण्यासाठी आपण आम्हाला संपर्क करू शकता.</p>
+            </div>
+        </div>
+        <p class="privacy-updated">शेवटचे अद्यतन: जून 2026 | संपर्क: 7218432344 / 8408994618</p>
+    </div>
+</section>
+
 <!-- Footer -->
 <footer id="contact">
     <div class="footer-grid">
@@ -1043,7 +1125,7 @@
         </div>
     </div>
     <div class="footer-bottom">
-        <p>&copy; 2024 ज्ञानसिंधू क्लासेस, नेरळ. सर्व हक्क राखीव. | ज्ञानातून यशाकडे</p>
+        <p>&copy; 2024 ज्ञानसिंधू क्लासेस, नेरळ. सर्व हक्क राखीव. | ज्ञानातून यशाकडे | <a href="#privacy" style="color:var(--gold);text-decoration:none;">गोपनीयता धोरण</a></p>
     </div>
 </footer>
 

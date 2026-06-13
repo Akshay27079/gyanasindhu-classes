@@ -76,6 +76,12 @@ describe('Google Sheets synchronization', () => {
     expect(app).toContain('response.ok && result.success');
   });
 
+  it('explains WhatsApp template translation errors', () => {
+    expect(app).toContain('function formatWhatsAppWebhookError(errorMessage)');
+    expect(app).toContain('#132001');
+    expect(app).toContain('WhatsApp template not found for this language');
+  });
+
   it('shows new student WhatsApp fields in tables and exports', () => {
     expect(app).toContain('<th>Parent</th>');
     expect(app).toContain('<th>Parent WhatsApp</th>');
