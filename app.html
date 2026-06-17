@@ -564,6 +564,15 @@
         function hasWebOrigin() {
             return location.protocol === 'http:' || location.protocol === 'https:';
         }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
         
         // Get notification log
         function getNotificationLog() {
@@ -686,6 +695,110 @@
                 failed: results.filter(result => !result.success && !result.skipped).length,
                 skipped: results.filter(result => result.skipped).length
             };
+        }
+
+        function getComplianceReasonLabel(reason) {
+            const labels = {
+                homework: 'Homework not completed',
+                misbehavior: 'Misbehavior in class',
+                both: 'Homework not completed and misbehavior',
+                custom: 'Compliance notice'
+            };
+            return labels[reason] || labels.custom;
+        }
+
+        function buildComplianceNoticeMessage(student, reason, details, date) {
+            const reasonLabel = getComplianceReasonLabel(reason);
+            const formattedDate = new Date(date).toLocaleDateString('en-IN');
+            const extraDetails = String(details || '').trim();
+            return [
+                `Dear ${student.parentName || 'Parent'},`,
+                `This is to inform you that ${student.name} (${student.class}) has a compliance concern: ${reasonLabel}.`,
+                `Date: ${formattedDate}.`,
+                extraDetails ? `Details: ${extraDetails}` : '',
+                'Please speak with your child and contact Dnyansindhu Classes if needed.',
+                'Dnyansindhu Classes, Neral'
+            ].filter(Boolean).join('\n\n');
+        }
+
+        async function sendParentComplianceNotice(student, notice) {
+            const config = getWhatsAppConfig();
+
+            if (!config.enabled || !config.webhookUrl) {
+                return { success: false, error: 'WhatsApp notifications not configured' };
+            }
+
+            if (!hasWebOrigin()) {
+                return {
+                    success: false,
+                    error: 'Open app.html through http://localhost or https:// website. file:// pages cannot reliably call Apps Script webhooks.'
+                };
+            }
+
+            if (student.whatsappOptOut) {
+                return { success: false, error: 'Student opted out' };
+            }
+
+            const parentPhone = normalizeWhatsAppPhone(student.parentPhone);
+            if (!parentPhone) {
+                return { success: false, error: 'Parent phone number not available' };
+            }
+
+            try {
+                const response = await fetch(config.webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        noticeType: 'compliance',
+                        parentPhone,
+                        parentName: student.parentName || 'Parent',
+                        studentName: student.name,
+                        className: student.class,
+                        date: new Date(notice.date).toLocaleDateString('en-IN'),
+                        reason: getComplianceReasonLabel(notice.reason),
+                        details: notice.details || '',
+                        message: buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date)
+                    }),
+                    redirect: 'follow'
+                });
+
+                const responseText = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                } catch (error) {
+                    throw new Error(`Webhook returned invalid JSON (${response.status})`);
+                }
+                if (!response.ok || !result.success) {
+                    throw new Error(formatWhatsAppWebhookError(result.error || result.message || `Webhook failed with HTTP ${response.status}`));
+                }
+
+                logNotification({
+                    type: 'compliance',
+                    studentId: student.id,
+                    studentName: student.name,
+                    parentPhone,
+                    date: notice.date,
+                    reason: getComplianceReasonLabel(notice.reason),
+                    success: true,
+                    error: null
+                });
+
+                return result;
+            } catch (error) {
+                console.error('Error sending compliance WhatsApp notice:', error);
+                logNotification({
+                    type: 'compliance',
+                    studentId: student.id,
+                    studentName: student.name,
+                    parentPhone: parentPhone || student.parentPhone,
+                    date: notice.date,
+                    reason: getComplianceReasonLabel(notice.reason),
+                    success: false,
+                    error: error.message
+                });
+                return { success: false, error: error.message };
+            }
         }
 
         function showAbsenceNotificationResult(result) {
@@ -1126,6 +1239,7 @@
                     { id: 'accounts', icon: 'users', label: 'खाती व्यवस्थापन' },
                     { id: 'attendance', icon: 'calendar-check', label: 'उपस्थिती' },
                     { id: 'marks', icon: 'chart-bar', label: 'गुण/निकाल' },
+                    { id: 'compliance', icon: 'bell', label: 'अनुपालन सूचना' },
                     { id: 'reports', icon: 'file-alt', label: 'रिपोर्ट्स' },
                     { id: 'settings', icon: 'cog', label: 'सेटिंग्ज' }
                 ];
@@ -1179,6 +1293,7 @@
                     case 'accounts': renderAdminAccounts(); break;
                     case 'attendance': renderAdminAttendance(); break;
                     case 'marks': renderAdminMarks(); break;
+                    case 'compliance': renderAdminCompliance(); break;
                     case 'reports': renderAdminReports(); break;
                     case 'settings': renderAdminSettings(); break;
                 }
@@ -2427,6 +2542,212 @@
                 showToast('Password reset successfully');
                 closeModal();
             });
+        }
+
+        // ============================================
+        // ADMIN: COMPLIANCE NOTICES
+        // ============================================
+
+        function renderAdminCompliance() {
+            document.getElementById('pageTitle').textContent = 'Compliance Notices';
+
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            const contentArea = document.getElementById('contentArea');
+            const studentOptions = students
+                .slice()
+                .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+                .map(student => `<option value="${student.id}">${escapeHtml(student.name)} - Class ${escapeHtml(student.class)}</option>`)
+                .join('');
+
+            contentArea.innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="text-3xl gold-accent"><i class="fas fa-bell"></i></div>
+                        <div>
+                            <h3 class="text-xl font-bold gold-accent">Parent Compliance Notice</h3>
+                            <p class="text-sm text-gray-400">Send a WhatsApp notice for incomplete homework, misbehavior, or both.</p>
+                        </div>
+                    </div>
+
+                    <form id="complianceNoticeForm" class="space-y-5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label>Student *</label>
+                                <select id="complianceStudent" name="studentId" onchange="updateCompliancePreview()" required>
+                                    <option value="">Select Student</option>
+                                    ${studentOptions}
+                                </select>
+                            </div>
+                            <div>
+                                <label>Date *</label>
+                                <input type="date" id="complianceDate" name="date" value="${new Date().toISOString().split('T')[0]}" onchange="updateCompliancePreview()" required>
+                            </div>
+                            <div>
+                                <label>Reason *</label>
+                                <select id="complianceReason" name="reason" onchange="updateCompliancePreview()" required>
+                                    <option value="homework">Homework not completed</option>
+                                    <option value="misbehavior">Misbehavior in class</option>
+                                    <option value="both">Homework not completed and misbehavior</option>
+                                    <option value="custom">Custom notice</option>
+                                </select>
+                            </div>
+                            <div id="complianceStudentStatus" class="rounded-lg bg-gray-800 border border-gray-700 p-4 mt-8">
+                                <span class="text-gray-400">Select a student to check WhatsApp readiness.</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label>Details</label>
+                            <textarea id="complianceDetails" name="details" rows="3" oninput="updateCompliancePreview()" placeholder="Example: Homework from Chapter 4 was not submitted, and student disturbed the class."></textarea>
+                        </div>
+
+                        <div class="rounded-lg bg-gray-800 border border-gray-700 p-4">
+                            <div class="text-sm text-gray-400 mb-2">Message Preview</div>
+                            <pre id="compliancePreview" class="whitespace-pre-wrap text-sm leading-6 text-gray-100 font-sans">Select a student to preview the parent notice.</pre>
+                        </div>
+
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <button type="submit" class="btn-gold flex-1">
+                                <i class="fab fa-whatsapp mr-2"></i>Send Notice
+                            </button>
+                            <button type="button" onclick="openComplianceNoticeWhatsApp()" class="btn-gold flex-1">
+                                <i class="fas fa-external-link-alt mr-2"></i>Open WhatsApp
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Recent Compliance Notices</h3>
+                    <div class="overflow-x-auto">
+                        ${renderComplianceNoticeLog()}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('complianceNoticeForm').addEventListener('submit', sendComplianceNoticeFromForm);
+            updateCompliancePreview();
+        }
+
+        function getSelectedComplianceStudent() {
+            const studentId = document.getElementById('complianceStudent')?.value;
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            return students.find(student => student.id === studentId);
+        }
+
+        function getComplianceFormNotice() {
+            return {
+                date: document.getElementById('complianceDate').value,
+                reason: document.getElementById('complianceReason').value,
+                details: document.getElementById('complianceDetails').value.trim()
+            };
+        }
+
+        function updateCompliancePreview() {
+            const student = getSelectedComplianceStudent();
+            const status = document.getElementById('complianceStudentStatus');
+            const preview = document.getElementById('compliancePreview');
+            if (!status || !preview) return;
+
+            if (!student) {
+                status.innerHTML = '<span class="text-gray-400">Select a student to check WhatsApp readiness.</span>';
+                preview.textContent = 'Select a student to preview the parent notice.';
+                return;
+            }
+
+            const notice = getComplianceFormNotice();
+            status.innerHTML = `
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <div class="font-semibold">${escapeHtml(student.parentName || 'Parent not set')}</div>
+                        <div class="text-sm text-gray-400">${escapeHtml(student.parentPhone || 'Parent WhatsApp missing')}</div>
+                    </div>
+                    <div>${renderWhatsAppStatus(student)}</div>
+                </div>
+            `;
+            preview.textContent = buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date);
+        }
+
+        async function sendComplianceNoticeFromForm(event) {
+            event.preventDefault();
+            const student = getSelectedComplianceStudent();
+            if (!student) {
+                showToast('Please select a student', 'error');
+                return;
+            }
+
+            const notice = getComplianceFormNotice();
+            if (!notice.date || !notice.reason) {
+                showToast('Please fill date and reason', 'error');
+                return;
+            }
+
+            showLoading();
+            const result = await sendParentComplianceNotice(student, notice);
+            hideLoading();
+
+            if (result.success) {
+                showToast('Compliance notice sent to parent', 'success');
+                logActivity(`Sent compliance notice to parent of ${student.name}`);
+                renderAdminCompliance();
+            } else {
+                showToast('Notice could not be sent: ' + result.error, 'error');
+            }
+        }
+
+        function openComplianceNoticeWhatsApp() {
+            const student = getSelectedComplianceStudent();
+            if (!student) {
+                showToast('Please select a student', 'error');
+                return;
+            }
+
+            const parentPhone = normalizeWhatsAppPhone(student.parentPhone);
+            if (!parentPhone) {
+                showToast('Parent WhatsApp number is missing or invalid', 'error');
+                return;
+            }
+
+            const notice = getComplianceFormNotice();
+            const message = buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date);
+            window.open(`https://wa.me/${parentPhone}?text=${encodeURIComponent(message)}`, '_blank');
+            showToast('WhatsApp opened with compliance notice');
+        }
+
+        function renderComplianceNoticeLog() {
+            const notices = getNotificationLog().filter(entry => entry.type === 'compliance').slice(0, 10);
+            if (!notices.length) {
+                return '<p class="text-gray-400">No compliance notices sent yet</p>';
+            }
+
+            return `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Time</th>
+                            <th class="text-left">Student</th>
+                            <th class="text-left">Reason</th>
+                            <th class="text-left">Phone</th>
+                            <th class="text-left">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${notices.map(entry => `
+                            <tr>
+                                <td>${new Date(entry.timestamp).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</td>
+                                <td>${escapeHtml(entry.studentName)}</td>
+                                <td>${escapeHtml(entry.reason || 'Compliance notice')}</td>
+                                <td>${escapeHtml(entry.parentPhone)}</td>
+                                <td>
+                                    ${entry.success
+                                        ? '<span class="text-green-400"><i class="fas fa-check-circle"></i> Sent</span>'
+                                        : '<span class="text-red-400"><i class="fas fa-times-circle"></i> Failed</span>'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
         }
         
         // ============================================

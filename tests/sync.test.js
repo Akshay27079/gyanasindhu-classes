@@ -89,4 +89,14 @@ describe('Google Sheets synchronization', () => {
     expect(app).toContain('function renderWhatsAppStatus(student)');
     expect(app).toContain("'Parent Name', 'Parent WhatsApp', 'WhatsApp Opt Out'");
   });
+
+  it('adds compliance WhatsApp notices for parents', () => {
+    expect(app).toContain("case 'compliance': renderAdminCompliance(); break;");
+    expect(app).toContain('function renderAdminCompliance()');
+    expect(app).toContain('async function sendParentComplianceNotice(student, notice)');
+    expect(app).toContain("noticeType: 'compliance'");
+    expect(app).toContain('Homework not completed and misbehavior');
+    expect(app).toContain('function openComplianceNoticeWhatsApp()');
+    expect(app).toContain('https://wa.me/${parentPhone}?text=${encodeURIComponent(message)}');
+  });
 });
