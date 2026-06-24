@@ -11,6 +11,11 @@ describe('Google Sheets synchronization', () => {
     expect(app).toContain('await refreshAllDataFromGoogleSheets()');
   });
 
+  it('allows login with local data when Google Sheets refresh fails', () => {
+    expect(app).toContain('Google Sheets refresh failed. Logging in with local browser data.');
+    expect(app).not.toContain("loginError.textContent = 'Could not load the latest Google Sheets data. Check your internet connection and try again.'");
+  });
+
   it('uses a CORS-simple content type for Apps Script requests', () => {
     expect(app).toContain("'Content-Type': 'text/plain;charset=utf-8'");
   });
