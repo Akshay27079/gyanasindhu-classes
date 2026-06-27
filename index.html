@@ -1261,7 +1261,7 @@ function handleSubmit() {
     err.classList.remove('show');
     if (!name || !cls) return;
     const msg = encodeURIComponent(`नाव: ${name}\nवर्ग: ${cls}\nफोन: ${phone}\n\nप्रवेशाबद्दल माहिती हवी आहे.`);
-    window.open(`https://wa.me/917218432344?text=${msg}`, '_blank');
+    window.open(`https://wa.me/917218432344?text=${msg}`, '_blank', 'noopener,noreferrer');
     closePopup();
 }
 

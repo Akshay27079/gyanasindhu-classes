@@ -16,6 +16,22 @@ describe('Google Sheets synchronization', () => {
     expect(app).not.toContain("loginError.textContent = 'Could not load the latest Google Sheets data. Check your internet connection and try again.'");
   });
 
+  it('uses expiring sessionStorage sessions for logged-in users', () => {
+    expect(app).toContain("const SESSION_STORAGE_KEY = 'dnyansindhu_active_session'");
+    expect(app).toContain('const SESSION_TIMEOUT_MS = 30 * 60 * 1000');
+    expect(app).toContain('function startSession(session)');
+    expect(app).toContain('function requireActiveSession()');
+    expect(app).toContain('sessionStorage.removeItem(SESSION_STORAGE_KEY)');
+    expect(app).toContain('Session expired. Please login again.');
+  });
+
+  it('keeps WhatsApp access tokens out of localStorage', () => {
+    expect(app).toContain("const WHATSAPP_ACCESS_TOKEN_KEY = 'dnyansindhu_whatsapp_access_token'");
+    expect(app).toContain('sessionStorage.setItem(WHATSAPP_ACCESS_TOKEN_KEY, accessToken)');
+    expect(app).toMatch(/localStorage\.setItem\('dnyansindhu_whatsapp_config', JSON\.stringify\(safeConfig\)\)/);
+    expect(app).not.toContain("localStorage.setItem('dnyansindhu_whatsapp_config', JSON.stringify(config))");
+  });
+
   it('uses a CORS-simple content type for Apps Script requests', () => {
     expect(app).toContain("'Content-Type': 'text/plain;charset=utf-8'");
   });

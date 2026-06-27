@@ -537,21 +537,37 @@
         // ============================================
         // WHATSAPP INTEGRATION
         // ============================================
+        const WHATSAPP_ACCESS_TOKEN_KEY = 'dnyansindhu_whatsapp_access_token';
         
         // Get WhatsApp configuration
         function getWhatsAppConfig() {
             const config = localStorage.getItem('dnyansindhu_whatsapp_config');
-            return config ? JSON.parse(config) : {
+            const savedConfig = config ? JSON.parse(config) : {
                 enabled: false,
                 webhookUrl: '',
                 phoneNumberId: '',
                 accessToken: ''
             };
+            if (savedConfig.accessToken) {
+                sessionStorage.setItem(WHATSAPP_ACCESS_TOKEN_KEY, savedConfig.accessToken);
+                const { accessToken, ...safeConfig } = savedConfig;
+                localStorage.setItem('dnyansindhu_whatsapp_config', JSON.stringify(safeConfig));
+            }
+            return {
+                ...savedConfig,
+                accessToken: sessionStorage.getItem(WHATSAPP_ACCESS_TOKEN_KEY) || ''
+            };
         }
         
         // Save WhatsApp configuration
         function saveWhatsAppConfig(config) {
-            localStorage.setItem('dnyansindhu_whatsapp_config', JSON.stringify(config));
+            const { accessToken, ...safeConfig } = config;
+            if (accessToken) {
+                sessionStorage.setItem(WHATSAPP_ACCESS_TOKEN_KEY, accessToken);
+            } else {
+                sessionStorage.removeItem(WHATSAPP_ACCESS_TOKEN_KEY);
+            }
+            localStorage.setItem('dnyansindhu_whatsapp_config', JSON.stringify(safeConfig));
         }
 
         function normalizeWhatsAppPhone(phone) {
@@ -849,11 +865,79 @@
         let currentSession = null;
         let currentPage = 'dashboard';
         let selectedRole = 'admin';
+        const SESSION_STORAGE_KEY = 'dnyansindhu_active_session';
+        const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
         const DEFAULT_ADMIN = {
             id: 'admin',
             username: 'admin',
             password: 'Capital@123'
         };
+
+        function getStoredSession() {
+            try {
+                const stored = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY) || 'null');
+                if (!stored || !stored.role || !stored.expiresAt) return null;
+                if (Date.now() > stored.expiresAt) {
+                    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                    return null;
+                }
+                return {
+                    role: stored.role,
+                    id: stored.id,
+                    name: stored.name
+                };
+            } catch (error) {
+                sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                return null;
+            }
+        }
+
+        function saveCurrentSession() {
+            if (!currentSession) return;
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+                ...currentSession,
+                expiresAt: Date.now() + SESSION_TIMEOUT_MS
+            }));
+        }
+
+        function startSession(session) {
+            currentSession = session;
+            saveCurrentSession();
+            loginPassword.value = '';
+            loginUsername.value = '';
+        }
+
+        function keepSessionAlive() {
+            if (!currentSession) return;
+            if (!getStoredSession()) {
+                endSession('Session expired. Please login again.');
+                return;
+            }
+            saveCurrentSession();
+        }
+
+        function endSession(message = '') {
+            currentSession = null;
+            sessionStorage.removeItem(SESSION_STORAGE_KEY);
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('mobile-open');
+            loginPassword.value = '';
+            loginUsername.value = '';
+            if (message) showToast(message, 'warning');
+        }
+
+        function requireActiveSession() {
+            const storedSession = getStoredSession();
+            if (!storedSession) {
+                if (currentSession) endSession('Session expired. Please login again.');
+                return false;
+            }
+            currentSession = storedSession;
+            saveCurrentSession();
+            return true;
+        }
         
         function uuid() {
             if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -1174,7 +1258,7 @@
             if (selectedRole === 'admin') {
                 const admin = JSON.parse(localStorage.getItem('gs_admin'));
                 if (password === admin.password) {
-                    currentSession = { role: 'admin', id: 'admin', name: 'Admin' };
+                    startSession({ role: 'admin', id: 'admin', name: 'Admin' });
                     showDashboard();
                 } else {
                     loginError.textContent = 'Invalid password';
@@ -1184,7 +1268,7 @@
                 const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
                 const teacher = teachers.find(t => t.username === username && t.password === password);
                 if (teacher) {
-                    currentSession = { role: 'teacher', id: teacher.id, name: teacher.name };
+                    startSession({ role: 'teacher', id: teacher.id, name: teacher.name });
                     showDashboard();
                 } else {
                     loginError.textContent = 'Invalid username or password';
@@ -1194,7 +1278,7 @@
                 const students = JSON.parse(localStorage.getItem('gs_students'));
                 const student = students.find(s => s.username === username && s.password === password);
                 if (student) {
-                    currentSession = { role: 'student', id: student.id, name: student.name };
+                    startSession({ role: 'student', id: student.id, name: student.name });
                     showDashboard();
                 } else {
                     loginError.textContent = 'Invalid username or password';
@@ -1208,6 +1292,7 @@
         // ============================================
         
         function showDashboard() {
+            if (!requireActiveSession()) return;
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('sidebar').classList.remove('hidden');
             document.getElementById('mainContent').classList.remove('hidden');
@@ -1273,6 +1358,7 @@
         }
         
         function navigateTo(page) {
+            if (!requireActiveSession()) return;
             currentPage = page;
             
             document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -1313,12 +1399,7 @@
         }
         
         document.getElementById('logoutBtn').addEventListener('click', () => {
-            currentSession = null;
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('sidebar').classList.add('hidden');
-            document.getElementById('mainContent').classList.add('hidden');
-            loginPassword.value = '';
-            loginUsername.value = '';
+            endSession();
         });
         
         document.getElementById('menuToggle').addEventListener('click', (e) => {
@@ -2708,7 +2789,7 @@
 
             const notice = getComplianceFormNotice();
             const message = buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date);
-            window.open(`https://wa.me/${parentPhone}?text=${encodeURIComponent(message)}`, '_blank');
+            window.open(`https://wa.me/${parentPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
             showToast('WhatsApp opened with compliance notice');
         }
 
@@ -3717,7 +3798,7 @@
                 `*Remark:* ${getPerformanceRemark(report.overall.percentage, report.attendance.percentage)}%0A%0A` +
                 `For detailed report, please visit: https://akshayyborade.github.io/gyanasindhu-classes/`;
             
-            window.open(`https://wa.me/91${phone}?text=${message}`, '_blank');
+            window.open(`https://wa.me/91${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
             showToast('WhatsApp opened with report summary');
         }
         
@@ -5343,19 +5424,35 @@
         if (!hasWebOrigin()) {
             showToast('Open this app through http://localhost or your website. file:// blocks Apps Script/WhatsApp webhook calls.', 'warning');
         }
+
+        const restoredSession = getStoredSession();
+        if (restoredSession) {
+            currentSession = restoredSession;
+            showDashboard();
+        }
+
+        ['click', 'keydown', 'touchstart'].forEach(eventName => {
+            document.addEventListener(eventName, keepSessionAlive, { passive: true });
+        });
         
         // Hydrate on page load, refresh when returning to the app, and poll while signed in.
         refreshAllDataFromGoogleSheets();
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
+                if (currentSession && !requireActiveSession()) return;
                 refreshAllDataFromGoogleSheets({ rerender: Boolean(currentSession) });
             }
         });
         setInterval(() => {
+            if (currentSession && !requireActiveSession()) return;
             if (currentSession && document.visibilityState === 'visible') {
                 refreshAllDataFromGoogleSheets();
             }
         }, 30000);
+
+        setInterval(() => {
+            if (currentSession) requireActiveSession();
+        }, 60000);
 
         // Update sync status UI periodically
         setInterval(updateSyncStatusUI, 5000);
