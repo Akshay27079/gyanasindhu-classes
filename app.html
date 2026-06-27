@@ -1052,6 +1052,19 @@
             return 'pending';
         }
 
+        // Show/hide stream field based on class selection (only for class 11 & 12)
+        function toggleAddStreamField() {
+            const cls = document.getElementById('addStudentClass')?.value;
+            const field = document.getElementById('addStreamField');
+            if (field) field.classList.toggle('hidden', cls !== '11' && cls !== '12');
+        }
+
+        function toggleEditStreamField() {
+            const cls = document.getElementById('editStudentClass')?.value;
+            const field = document.getElementById('editStreamField');
+            if (field) field.classList.toggle('hidden', cls !== '11' && cls !== '12');
+        }
+
         function renderWhatsAppStatus(student) {
             if (student.whatsappOptOut) {
                 return '<span class="badge bg-gray-600 text-white">Opt-out</span>';
@@ -1521,13 +1534,18 @@
                             onkeyup="filterStudents()" class="w-full">
                         <select id="filterClass" onchange="filterStudents()" class="w-full">
                             <option value="">All Classes</option>
+                            <option value="1">Class 1</option>
+                            <option value="2">Class 2</option>
+                            <option value="3">Class 3</option>
+                            <option value="4">Class 4</option>
+                            <option value="5">Class 5</option>
+                            <option value="6">Class 6</option>
+                            <option value="7">Class 7</option>
                             <option value="8">Class 8</option>
                             <option value="9">Class 9</option>
                             <option value="10">Class 10</option>
-                            <option value="11-science">11 Science</option>
-                            <option value="11-commerce">11 Commerce</option>
-                            <option value="12-science">12 Science</option>
-                            <option value="12-commerce">12 Commerce</option>
+                            <option value="11">Class 11</option>
+                            <option value="12">Class 12</option>
                         </select>
                         <select id="filterFee" onchange="filterStudents()" class="w-full">
                             <option value="">All Fee Status</option>
@@ -1649,24 +1667,38 @@
                         </div>
                         <div>
                             <label>Class *</label>
-                            <select name="class" required>
+                            <select name="class" id="addStudentClass" onchange="toggleAddStreamField()" required>
                                 <option value="">Select</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
                                 <option value="8">8</option>
                                 <option value="9">9</option>
                                 <option value="10">10</option>
-                                <option value="11-science">11 Science</option>
-                                <option value="11-commerce">11 Commerce</option>
-                                <option value="12-science">12 Science</option>
-                                <option value="12-commerce">12 Commerce</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="addStreamField" class="hidden">
                             <label>Stream</label>
                             <select name="stream">
                                 <option value="NA">NA</option>
                                 <option value="Science">Science</option>
                                 <option value="Commerce">Commerce</option>
                                 <option value="Arts">Arts</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Medium *</label>
+                            <select name="medium" required>
+                                <option value="">Select</option>
+                                <option value="Marathi">Marathi</option>
+                                <option value="Semi-English">Semi-English</option>
+                                <option value="English">English</option>
                             </select>
                         </div>
                         <div>
