@@ -67,7 +67,7 @@ function doPost(e) {
       return createResponse(false, 'Invalid parent phone number');
     }
 
-    const noticeType = String(data.noticeType || 'absence');
+    const noticeType = normalizeNoticeType(data.noticeType);
     const result = noticeType === 'compliance'
       ? sendComplianceNotification(data, config)
       : sendAbsenceNotification(data, config);
@@ -133,18 +133,18 @@ function sendComplianceNotification(data, config) {
             { type: 'text', parameter_name: 'student_name', text: data.studentName },
             { type: 'text', parameter_name: 'class',        text: data.className || '' },
             { type: 'text', parameter_name: 'reason',       text: data.reason || 'Compliance issue' },
-            { type: 'text', parameter_name: 'date',         text: data.date || '' },
+            { type: 'text', parameter_name: 'date',         text: data.noticeDate || data.date || '' },
             { type: 'text', parameter_name: 'details',      text: data.details || '-' }
           ]
         }
       ]
     }
   };
-  return sendToWhatsAppAPI(payload, config);
+  return sendToWhatsAppAPI(payload, config, 'compliance');
 }
 
 // ── WhatsApp API call ──────────────────────────────────────────────────────
-function sendToWhatsAppAPI(payload, config) {
+function sendToWhatsAppAPI(payload, config, noticeType) {
   const url = 'https://graph.facebook.com/' + config.API_VERSION + '/' + config.PHONE_NUMBER_ID + '/messages';
 
   Logger.log('WhatsApp payload: ' + JSON.stringify(payload));
@@ -164,13 +164,26 @@ function sendToWhatsAppAPI(payload, config) {
 
   Logger.log('Meta response ' + responseCode + ': ' + responseText);
 
+  const resultData = {
+    noticeType: noticeType || 'absence',
+    templateName: payload.template && payload.template.name,
+    templateLanguage: payload.template && payload.template.language && payload.template.language.code,
+    meta: responseBody
+  };
+
   if (responseCode >= 200 && responseCode < 300 && responseBody.messages) {
-    return { success: true, message: 'WhatsApp message sent successfully', data: responseBody };
+    return { success: true, message: 'WhatsApp message sent successfully', data: resultData };
   }
-  return { success: false, message: formatMetaError(responseBody), data: responseBody };
+  return { success: false, message: formatMetaError(responseBody), data: resultData };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+function normalizeNoticeType(noticeType) {
+  const value = String(noticeType || 'absence').trim().toLowerCase();
+  if (value === 'compliance' || value === 'compliance_notice') return 'compliance';
+  return 'absence';
+}
+
 function normalizePhone(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
   if (/^[6-9]\d{9}$/.test(digits))    return '91' + digits;
@@ -207,7 +220,7 @@ function logNotification(data, result, noticeType, config) {
     sheet.appendRow([
       new Date(), noticeType,
       data.parentName, data.studentName, data.parentPhone,
-      data.date, data.reason || '-',
+      data.noticeDate || data.date, data.reason || '-',
       result.success ? 'SUCCESS' : 'FAILED', result.message
     ]);
   } catch (err) {
@@ -243,7 +256,7 @@ function testComplianceNotification() {
     studentName: 'राज पाटील',
     className:   '10',
     reason:      'Homework not completed',
-    date:        '17 जून 2026',
+    noticeDate:  '17 जून 2026',
     details:     'गणिताचे गृहपाठ पूर्ण झाले नाही'
   }, config);
   Logger.log(JSON.stringify(result, null, 2));

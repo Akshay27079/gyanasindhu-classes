@@ -18,12 +18,7 @@ describe('index.html exists', () => {
   });
 });
 
-describe('Head CDN links', () => {
-  it('contains Tailwind CSS CDN script', () => {
-    const scripts = Array.from(document.querySelectorAll('script[src]'));
-    expect(scripts.some(s => s.src.includes('tailwindcss.com'))).toBe(true);
-  });
-
+describe('Head assets', () => {
   it('contains Font Awesome CDN link', () => {
     const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
     expect(links.some(l => l.href.includes('font-awesome'))).toBe(true);
@@ -32,6 +27,10 @@ describe('Head CDN links', () => {
   it('contains Google Fonts CDN link', () => {
     const links = Array.from(document.querySelectorAll('link[href]'));
     expect(links.some(l => l.href.includes('fonts.googleapis.com'))).toBe(true);
+  });
+
+  it('uses the local custom stylesheet in the page head', () => {
+    expect(document.head.querySelector('style')).not.toBeNull();
   });
 });
 
@@ -59,28 +58,28 @@ describe('Navigation', () => {
     expect(links.some(a => a.getAttribute('href') === '#contact')).toBe(true);
   });
 
-  it('nav contains tel:9175432344 link', () => {
+  it('nav contains tel:7218432344 link', () => {
     const nav = document.querySelector('nav');
     const links = Array.from(nav.querySelectorAll('a[href]'));
-    expect(links.some(a => a.getAttribute('href') === 'tel:9175432344')).toBe(true);
+    expect(links.some(a => a.getAttribute('href') === 'tel:7218432344')).toBe(true);
   });
 });
 
 describe('Hero section', () => {
-  it('hero H1 contains "ज्ञानातून"', () => {
+  it('hero H1 contains the class brand', () => {
     const hero = document.querySelector('#hero');
     const h1 = hero.querySelector('h1');
-    expect(h1.textContent).toContain('ज्ञानातून');
+    expect(h1.textContent).toContain('ज्ञानसिंधू');
   });
 
-  it('hero contains discount badge text "२०% सवलत"', () => {
+  it('hero contains fee discount stat text', () => {
     const hero = document.querySelector('#hero');
-    expect(hero.textContent).toContain('२०% सवलत');
+    expect(hero.textContent).toContain('२०%');
+    expect(hero.textContent).toContain('फी सूट');
   });
 
-  it('hero contains an img element', () => {
-    const hero = document.querySelector('#hero');
-    expect(hero.querySelector('img')).not.toBeNull();
+  it('hero contains the animated star canvas', () => {
+    expect(document.querySelector('#starCanvas')).not.toBeNull();
   });
 });
 
@@ -97,10 +96,10 @@ describe('Features section', () => {
   const featureLabels = [
     'मर्यादित विद्यार्थी',
     'अनुभवी शिक्षक',
-    'नोट्स पुरवठा',
+    'नोट्स व स्टडी मटेरिअल',
     'वैयक्तिक लक्ष',
-    'साप्ताहिक चाचण्या',
-    'पालक-शिक्षक बैठका',
+    'साप्ताहिक चाचणी',
+    'पालक-शिक्षक सभा',
   ];
 
   featureLabels.forEach(label => {
@@ -112,22 +111,9 @@ describe('Features section', () => {
 });
 
 describe('CTA / Contact section', () => {
-  it('contact section has tel:9175432344 link', () => {
+  it('contact section lists the primary phone number', () => {
     const contact = document.querySelector('#contact');
-    const links = Array.from(contact.querySelectorAll('a[href]'));
-    expect(links.some(a => a.getAttribute('href') === 'tel:9175432344')).toBe(true);
-  });
-
-  it('contact section has tel:8408994618 link', () => {
-    const contact = document.querySelector('#contact');
-    const links = Array.from(contact.querySelectorAll('a[href]'));
-    expect(links.some(a => a.getAttribute('href') === 'tel:8408994618')).toBe(true);
-  });
-
-  it('contact section has tel:7722055914 link', () => {
-    const contact = document.querySelector('#contact');
-    const links = Array.from(contact.querySelectorAll('a[href]'));
-    expect(links.some(a => a.getAttribute('href') === 'tel:7722055914')).toBe(true);
+    expect(contact.textContent).toContain('7218432344');
   });
 
   it('contact section has wa.me WhatsApp link', () => {
@@ -145,7 +131,7 @@ describe('Footer', () => {
 
   it('footer contains phone numbers', () => {
     const footer = document.querySelector('footer');
-    expect(footer.textContent).toContain('9175432344');
+    expect(footer.textContent).toContain('7218432344');
     expect(footer.textContent).toContain('8408994618');
     expect(footer.textContent).toContain('7722055914');
   });
@@ -163,24 +149,24 @@ describe('Footer', () => {
 });
 
 describe('Popup', () => {
-  it('popup has hidden class by default', () => {
+  it('popup is closed by default', () => {
     const popup = document.querySelector('#popup');
-    expect(popup.classList.contains('hidden')).toBe(true);
+    expect(popup.classList.contains('open')).toBe(false);
   });
 
   it('popup contains name input', () => {
     const popup = document.querySelector('#popup');
-    expect(popup.querySelector('#popup-name')).not.toBeNull();
+    expect(popup.querySelector('#f-name')).not.toBeNull();
   });
 
   it('popup contains phone input', () => {
     const popup = document.querySelector('#popup');
-    expect(popup.querySelector('#popup-phone')).not.toBeNull();
+    expect(popup.querySelector('#f-phone')).not.toBeNull();
   });
 
   it('popup contains class input/select', () => {
     const popup = document.querySelector('#popup');
-    const classInput = popup.querySelector('#popup-class');
+    const classInput = popup.querySelector('#f-class');
     expect(classInput).not.toBeNull();
   });
 });

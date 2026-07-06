@@ -4,6 +4,7 @@ import path from 'path';
 
 const app = fs.readFileSync(path.resolve(__dirname, '../app.html'), 'utf8');
 const appsScript = fs.readFileSync(path.resolve(__dirname, '../Code.gs'), 'utf8');
+const whatsAppWebhook = fs.readFileSync(path.resolve(__dirname, '../WhatsApp_Webhook_Updated.gs'), 'utf8');
 
 describe('Google Sheets synchronization', () => {
   it('refreshes shared data before authenticating a login', () => {
@@ -116,8 +117,22 @@ describe('Google Sheets synchronization', () => {
     expect(app).toContain('function renderAdminCompliance()');
     expect(app).toContain('async function sendParentComplianceNotice(student, notice)');
     expect(app).toContain("noticeType: 'compliance'");
+    expect(app).toContain('noticeDate: new Date(notice.date).toLocaleDateString');
+    expect(app).toContain("result.data.noticeType !== 'compliance'");
+    expect(app).toContain('Webhook did not confirm the template used');
     expect(app).toContain('Homework not completed and misbehavior');
     expect(app).toContain('function openComplianceNoticeWhatsApp()');
     expect(app).toContain('https://wa.me/${parentPhone}?text=${encodeURIComponent(message)}');
+  });
+
+  it('routes compliance notices to a separate webhook template contract', () => {
+    expect(whatsAppWebhook).toContain('function normalizeNoticeType(noticeType)');
+    expect(whatsAppWebhook).toContain("if (value === 'compliance' || value === 'compliance_notice') return 'compliance';");
+    expect(whatsAppWebhook).toContain("const noticeType = normalizeNoticeType(data.noticeType)");
+    expect(whatsAppWebhook).toContain("text: data.noticeDate || data.date || ''");
+    expect(whatsAppWebhook).toContain("return sendToWhatsAppAPI(payload, config, 'compliance')");
+    expect(whatsAppWebhook).toContain('templateName: payload.template && payload.template.name');
+    expect(whatsAppWebhook).toContain('templateLanguage: payload.template && payload.template.language && payload.template.language.code');
+    expect(whatsAppWebhook).toContain('data.noticeDate || data.date');
   });
 });

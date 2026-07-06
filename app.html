@@ -770,7 +770,7 @@
                         parentName: student.parentName || 'Parent',
                         studentName: student.name,
                         className: student.class,
-                        date: new Date(notice.date).toLocaleDateString('en-IN'),
+                        noticeDate: new Date(notice.date).toLocaleDateString('en-IN'),
                         reason: getComplianceReasonLabel(notice.reason),
                         details: notice.details || '',
                         message: buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date)
@@ -787,6 +787,12 @@
                 }
                 if (!response.ok || !result.success) {
                     throw new Error(formatWhatsAppWebhookError(result.error || result.message || `Webhook failed with HTTP ${response.status}`));
+                }
+                if (result.data?.noticeType && result.data.noticeType !== 'compliance') {
+                    throw new Error(`Webhook sent ${result.data.noticeType} template instead of compliance. Redeploy WhatsApp_Webhook_Updated.gs as the active Apps Script web app.`);
+                }
+                if (!result.data?.templateName) {
+                    throw new Error('Webhook did not confirm the template used. Redeploy WhatsApp_Webhook_Updated.gs as the active Apps Script web app.');
                 }
 
                 logNotification({
@@ -5017,122 +5023,6 @@
             return `${days}d ago`;
         }
         
-        // Sync data to Google Sheets via Apps Script
-        async function syncToGoogleSheets(sheetName, data) {
-            if (!isGoogleSheetsConfigured()) {
-                console.log('⚠️ Google Sheets not configured, using localStorage only');
-                return { success: false, error: 'Not configured' };
-            }
-            
-            const config = getGoogleSheetsConfig();
-            syncStatus.syncing = true;
-            syncStatus.pendingOperations++;
-            updateSyncStatusUI();
-            
-            console.log(`🔄 Starting sync to Google Sheets: ${sheetName}`, {
-                recordCount: Array.isArray(data) ? data.length : 'N/A',
-                apiUrl: config.apiUrl.substring(0, 50) + '...'
-            });
-            
-            try {
-                const payload = {
-                    action: 'write',
-                    sheetName: sheetName,
-                    records: data,
-                    timestamp: new Date().toISOString()
-                };
-                
-                console.log(`📤 Sending payload:`, {
-                    action: payload.action,
-                    sheetName: payload.sheetName,
-                    recordCount: Array.isArray(data) ? data.length : 'N/A'
-                });
-                
-                const response = await fetch(config.apiUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                console.log(`📥 Response status: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                console.log(`📥 Response data:`, result);
-                
-                if (result.success) {
-                    syncStatus.lastSync = new Date().toISOString();
-                    syncStatus.lastError = null;
-                    console.log(`✅ Successfully synced to Google Sheets: ${sheetName}`);
-                    return { success: true, result };
-                } else {
-                    throw new Error(result.error || 'Sync failed without error message');
-                }
-            } catch (error) {
-                syncStatus.lastError = error.message;
-                console.error(`❌ Google Sheets sync error for ${sheetName}:`, {
-                    message: error.message,
-                    stack: error.stack
-                });
-                return { success: false, error: error.message };
-            } finally {
-                syncStatus.pendingOperations--;
-                if (syncStatus.pendingOperations === 0) {
-                    syncStatus.syncing = false;
-                }
-                updateSyncStatusUI();
-            }
-        }
-        
-        // Load data from Google Sheets via Apps Script
-        async function loadFromGoogleSheets(sheetName) {
-            if (!isGoogleSheetsConfigured()) {
-                console.log('⚠️ Google Sheets not configured');
-                return null;
-            }
-            
-            const config = getGoogleSheetsConfig();
-            console.log(`🔄 Loading from Google Sheets: ${sheetName}`);
-            
-            try {
-                const response = await fetch(config.apiUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        action: 'read',
-                        sheetName: sheetName
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                console.log(`📥 Loaded from Google Sheets: ${sheetName}`, {
-                    recordCount: result.data ? result.data.length : 0
-                });
-                
-                if (!result.success) {
-                    throw new Error(result.error || 'Failed to load');
-                }
-                
-                return result.data || [];
-            } catch (error) {
-                console.error(`❌ Google Sheets load error for ${sheetName}:`, error);
-                return null;
-            }
-        }
-        
         // Manual sync all data to Google Sheets
         async function syncAllToGoogleSheets() {
             if (!isGoogleSheetsConfigured()) {
@@ -5209,47 +5099,6 @@
                 hideLoading();
                 showToast('❌ Connection test error: ' + error.message, 'error');
             }
-        }
-        
-        // Enhanced save functions with Google Sheets sync and error handling
-        function saveStudentsData(students) {
-            localStorage.setItem('gs_students', JSON.stringify(students));
-            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.students, students)
-                .then(result => {
-                    if (!result.success) {
-                        console.warn('Failed to sync students to Google Sheets, but data saved locally');
-                    }
-                });
-        }
-        
-        function saveTeachersData(teachers) {
-            localStorage.setItem('gs_teachers', JSON.stringify(teachers));
-            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.teachers, teachers)
-                .then(result => {
-                    if (!result.success) {
-                        console.warn('Failed to sync teachers to Google Sheets, but data saved locally');
-                    }
-                });
-        }
-        
-        function saveAttendanceData(attendance) {
-            localStorage.setItem('gs_attendance', JSON.stringify(attendance));
-            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.attendance, attendance)
-                .then(result => {
-                    if (!result.success) {
-                        console.warn('Failed to sync attendance to Google Sheets, but data saved locally');
-                    }
-                });
-        }
-        
-        function saveMarksData(marks) {
-            localStorage.setItem('gs_marks', JSON.stringify(marks));
-            syncToGoogleSheets(GOOGLE_SHEETS_CONFIG.sheetsNames.marks, marks)
-                .then(result => {
-                    if (!result.success) {
-                        console.warn('Failed to sync marks to Google Sheets, but data saved locally');
-                    }
-                });
         }
         
         // CORS-safe, authoritative Google Sheets API implementation.
