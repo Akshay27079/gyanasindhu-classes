@@ -54,6 +54,17 @@ function doPost(e) {
     const body = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
     const data = JSON.parse(body);
 
+    // Handle route check from app.html (validates compliance routing works)
+    if (data.routeCheck === true) {
+      const noticeType = normalizeNoticeType(data.noticeType);
+      return createResponse(true, 'Route check passed', {
+        noticeType: noticeType,
+        templateName: noticeType === 'compliance' 
+          ? (config.TEMPLATES.compliance.name) 
+          : (config.TEMPLATES.absence.name)
+      });
+    }
+
     if (!config.PHONE_NUMBER_ID || !config.ACCESS_TOKEN) {
       return createResponse(false, 'Missing WhatsApp configuration in Script Properties');
     }
