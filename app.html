@@ -761,29 +761,6 @@
             }
 
             try {
-                const routeCheck = await fetch(config.webhookUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({
-                        routeCheck: true,
-                        noticeType: 'compliance',
-                        parentPhone,
-                        parentName: student.parentName || 'Parent',
-                        studentName: student.name
-                    }),
-                    redirect: 'follow'
-                });
-                const routeCheckText = await routeCheck.text();
-                let routeCheckResult;
-                try {
-                    routeCheckResult = JSON.parse(routeCheckText);
-                } catch (error) {
-                    throw new Error(`Webhook route check returned invalid JSON (${routeCheck.status})`);
-                }
-                if (!routeCheck.ok || !routeCheckResult.success || routeCheckResult.data?.noticeType !== 'compliance') {
-                    throw new Error('Webhook is not using the compliance template. Redeploy WhatsApp_Webhook_Updated.gs as the active Apps Script web app.');
-                }
-
                 const formattedDate = new Date(notice.date).toLocaleDateString('en-IN');
                 const response = await fetch(config.webhookUrl, {
                     method: 'POST',
@@ -811,12 +788,6 @@
                 }
                 if (!response.ok || !result.success) {
                     throw new Error(formatWhatsAppWebhookError(result.error || result.message || `Webhook failed with HTTP ${response.status}`));
-                }
-                if (result.data?.noticeType && result.data.noticeType !== 'compliance') {
-                    throw new Error(`Webhook sent ${result.data.noticeType} template instead of compliance. Redeploy WhatsApp_Webhook_Updated.gs as the active Apps Script web app.`);
-                }
-                if (!result.data?.templateName) {
-                    throw new Error('Webhook did not confirm the template used. Redeploy WhatsApp_Webhook_Updated.gs as the active Apps Script web app.');
                 }
 
                 logNotification({
