@@ -1234,6 +1234,9 @@
             if (!localStorage.getItem('gs_attendance')) {
                 localStorage.setItem('gs_attendance', JSON.stringify([]));
             }
+            if (!localStorage.getItem('gs_teacher_attendance')) {
+                localStorage.setItem('gs_teacher_attendance', JSON.stringify([]));
+            }
             if (!localStorage.getItem('gs_marks')) {
                 localStorage.setItem('gs_marks', JSON.stringify([]));
             }
@@ -1354,6 +1357,7 @@
                     { id: 'teachers', icon: 'chalkboard-teacher', label: 'शिक्षक' },
                     { id: 'accounts', icon: 'users', label: 'खाती व्यवस्थापन' },
                     { id: 'attendance', icon: 'calendar-check', label: 'उपस्थिती' },
+                    { id: 'teacher-attendance-admin', icon: 'user-check', label: 'Teacher Attendance' },
                     { id: 'marks', icon: 'chart-bar', label: 'गुण/निकाल' },
                     { id: 'compliance', icon: 'bell', label: 'अनुपालन सूचना' },
                     { id: 'salary-slips', icon: 'receipt', label: 'Salary Slips' },
@@ -1410,6 +1414,7 @@
                     case 'teachers': renderAdminTeachers(); break;
                     case 'accounts': renderAdminAccounts(); break;
                     case 'attendance': renderAdminAttendance(); break;
+                    case 'teacher-attendance-admin': renderAdminTeacherAttendance(); break;
                     case 'marks': renderAdminMarks(); break;
                     case 'compliance': renderAdminCompliance(); break;
                     case 'salary-slips': renderAdminSalarySlips(); break;
@@ -3199,17 +3204,18 @@
         }
 
         function calculateTeacherSalarySlip(teacher, month, expectedHours, adjustment) {
-            const attendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
+            const teacherAttendance = JSON.parse(localStorage.getItem('gs_teacher_attendance') || '[]');
             const [year, monthNum] = month.split('-').map(Number);
             const monthlySalary = parseFloat(teacher.salary) || 0;
             const hourlyRate = expectedHours > 0 ? monthlySalary / expectedHours : 0;
 
-            const lectureRecords = attendance.filter(record => {
+            const monthRecords = teacherAttendance.filter(record => {
                 const recordDate = new Date(record.date);
-                return record.savedBy === teacher.id &&
+                return record.teacherId === teacher.id &&
                     recordDate.getFullYear() === year &&
                     (recordDate.getMonth() + 1) === monthNum;
             });
+            const lectureRecords = monthRecords.filter(record => record.status === 'present');
 
             const coveredHours = lectureRecords.reduce((total, record) => {
                 const hours = parseFloat(record.lectureHours);
@@ -3235,6 +3241,7 @@
                 adjustment,
                 payableBeforeAdjustment,
                 payableSalary,
+                monthRecords,
                 lectureRecords
             };
         }
@@ -3311,32 +3318,33 @@
 
                 <div class="mb-6">
                     <h3 class="font-bold mb-2" style="color: #f5c518;">Lecture Details</h3>
-                    ${slip.lectureRecords.length ? `
+                    ${slip.monthRecords.length ? `
                         <table class="w-full" style="border: 1px solid #ccc;">
                             <thead style="background: #f5c518; color: #000;">
                                 <tr>
                                     <th style="border: 1px solid #ccc; padding: 8px;">Date</th>
-                                    <th style="border: 1px solid #ccc; padding: 8px;">Class</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Status</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Class / Batch</th>
                                     <th style="border: 1px solid #ccc; padding: 8px;">Hours</th>
-                                    <th style="border: 1px solid #ccc; padding: 8px;">Students Present</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Remarks</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${slip.lectureRecords.map(record => {
-                                    const present = (record.records || []).filter(item => item.present).length;
-                                    const hours = parseFloat(record.lectureHours) || 1;
+                                ${slip.monthRecords.map(record => {
+                                    const hours = parseFloat(record.lectureHours) || 0;
                                     return `
                                         <tr>
                                             <td style="border: 1px solid #ccc; padding: 8px;">${escapeHtml(record.date)}</td>
-                                            <td style="border: 1px solid #ccc; padding: 8px;">${escapeHtml(record.class)}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px;">${record.status === 'present' ? 'Present' : 'Absent'}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px;">${escapeHtml(record.className || '-')}</td>
                                             <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${hours.toFixed(2)}</td>
-                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${present}/${(record.records || []).length}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px;">${escapeHtml(record.remarks || '-')}</td>
                                         </tr>
                                     `;
                                 }).join('')}
                             </tbody>
                         </table>
-                    ` : '<p class="text-gray-600">No teacher-saved lectures found for this month.</p>'}
+                    ` : '<p class="text-gray-600">No teacher attendance records found for this month.</p>'}
                 </div>
 
                 <div class="mt-8 text-sm">
@@ -3364,6 +3372,185 @@
             printWindow.document.write('</body></html>');
             printWindow.document.close();
             printWindow.print();
+        }
+
+        // ============================================
+        // ADMIN: TEACHER ATTENDANCE
+        // ============================================
+
+        function renderAdminTeacherAttendance() {
+            document.getElementById('pageTitle').textContent = 'Teacher Attendance';
+
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers') || '[]');
+            const teacherOptions = teachers
+                .slice()
+                .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+                .map(teacher => `<option value="${teacher.id}">${escapeHtml(teacher.name)} - ${escapeHtml(teacher.subject || 'Subject not set')}</option>`)
+                .join('');
+
+            document.getElementById('contentArea').innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Mark Teacher Attendance</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label>Date *</label>
+                            <input type="date" id="teacherAdminAttendanceDate" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div>
+                            <label>Teacher *</label>
+                            <select id="teacherAdminAttendanceTeacher">
+                                <option value="">Select Teacher</option>
+                                ${teacherOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label>Status *</label>
+                            <select id="teacherAdminAttendanceStatus" onchange="updateTeacherAttendanceHoursState()">
+                                <option value="present">Present</option>
+                                <option value="absent">Absent</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Lecture Hours *</label>
+                            <input type="number" id="teacherAdminAttendanceHours" value="1" min="0" step="0.25">
+                        </div>
+                        <div>
+                            <label>Class / Batch</label>
+                            <input type="text" id="teacherAdminAttendanceClass" placeholder="Example: 10, 12 Science">
+                        </div>
+                        <div>
+                            <label>Remarks</label>
+                            <input type="text" id="teacherAdminAttendanceRemarks" placeholder="Topic, leave reason, or notes">
+                        </div>
+                    </div>
+                    <button onclick="saveAdminTeacherAttendance()" class="btn-gold">
+                        <i class="fas fa-save mr-2"></i>Save Teacher Attendance
+                    </button>
+                </div>
+
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Recent Teacher Attendance</h3>
+                    <div id="teacherAttendanceRecords"></div>
+                </div>
+            `;
+
+            renderTeacherAttendanceRecords();
+            updateTeacherAttendanceHoursState();
+        }
+
+        function updateTeacherAttendanceHoursState() {
+            const status = document.getElementById('teacherAdminAttendanceStatus')?.value;
+            const hoursInput = document.getElementById('teacherAdminAttendanceHours');
+            if (!hoursInput) return;
+
+            if (status === 'absent') {
+                hoursInput.value = '0';
+                hoursInput.disabled = true;
+            } else {
+                hoursInput.disabled = false;
+                if (parseFloat(hoursInput.value) <= 0) hoursInput.value = '1';
+            }
+        }
+
+        async function saveAdminTeacherAttendance() {
+            const date = document.getElementById('teacherAdminAttendanceDate').value;
+            const teacherId = document.getElementById('teacherAdminAttendanceTeacher').value;
+            const status = document.getElementById('teacherAdminAttendanceStatus').value;
+            const lectureHours = status === 'present'
+                ? (parseFloat(document.getElementById('teacherAdminAttendanceHours').value) || 0)
+                : 0;
+            const className = document.getElementById('teacherAdminAttendanceClass').value.trim();
+            const remarks = document.getElementById('teacherAdminAttendanceRemarks').value.trim();
+
+            if (!date || !teacherId) {
+                showToast('Please select date and teacher', 'error');
+                return;
+            }
+            if (status === 'present' && lectureHours <= 0) {
+                showToast('Lecture hours must be greater than 0 for present teacher attendance', 'error');
+                return;
+            }
+
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers') || '[]');
+            const teacher = teachers.find(t => t.id === teacherId);
+            if (!teacher) {
+                showToast('Teacher not found', 'error');
+                return;
+            }
+
+            const teacherAttendance = JSON.parse(localStorage.getItem('gs_teacher_attendance') || '[]');
+            teacherAttendance.push({
+                id: uuid(),
+                date,
+                teacherId,
+                teacherName: teacher.name,
+                status,
+                lectureHours,
+                className,
+                remarks,
+                savedBy: currentSession.role === 'admin' ? 'admin' : currentSession.id,
+                savedAt: new Date().toISOString()
+            });
+
+            showLoading();
+            const saved = await saveTeacherAttendanceData(teacherAttendance);
+            hideLoading();
+            if (!saved) {
+                showToast('Teacher attendance was not saved to Google Sheets. Please try again.', 'error');
+                return;
+            }
+
+            logActivity(`Marked teacher attendance for ${teacher.name} on ${date}`);
+            showToast('Teacher attendance saved successfully');
+            renderAdminTeacherAttendance();
+        }
+
+        function renderTeacherAttendanceRecords() {
+            const container = document.getElementById('teacherAttendanceRecords');
+            if (!container) return;
+
+            const records = JSON.parse(localStorage.getItem('gs_teacher_attendance') || '[]')
+                .slice()
+                .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.savedAt || '').localeCompare(String(a.savedAt || '')))
+                .slice(0, 30);
+
+            if (!records.length) {
+                container.innerHTML = '<p class="text-gray-400">No teacher attendance records found</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Teacher</th>
+                                <th>Status</th>
+                                <th>Hours</th>
+                                <th>Class / Batch</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${records.map(record => `
+                                <tr>
+                                    <td>${escapeHtml(record.date)}</td>
+                                    <td>${escapeHtml(record.teacherName)}</td>
+                                    <td>
+                                        <span class="badge ${record.status === 'present' ? 'badge-paid' : 'badge-pending'}">
+                                            ${record.status === 'present' ? 'Present' : 'Absent'}
+                                        </span>
+                                    </td>
+                                    <td>${Number(record.lectureHours || 0).toFixed(2)}</td>
+                                    <td>${escapeHtml(record.className || '-')}</td>
+                                    <td>${escapeHtml(record.remarks || '-')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         }
         
         // ============================================
@@ -4432,6 +4619,7 @@
                 students: JSON.parse(localStorage.getItem('gs_students')),
                 teachers: JSON.parse(localStorage.getItem('gs_teachers')),
                 attendance: JSON.parse(localStorage.getItem('gs_attendance')),
+                teacherAttendance: JSON.parse(localStorage.getItem('gs_teacher_attendance') || '[]'),
                 marks: JSON.parse(localStorage.getItem('gs_marks')),
                 activity: JSON.parse(localStorage.getItem('gs_activity'))
             };
@@ -4448,13 +4636,14 @@
         
         async function clearAllData() {
             if (!confirm('Are you sure you want to clear all data? This action cannot be undone!')) return;
-            if (!confirm('This will delete all students, teachers, attendance, and marks. Are you absolutely sure?')) return;
+            if (!confirm('This will delete all students, teachers, attendance, teacher attendance, and marks. Are you absolutely sure?')) return;
             
             showLoading();
             const results = await Promise.all([
                 saveStudentsData([]),
                 saveTeachersData([]),
                 saveAttendanceData([]),
+                saveTeacherAttendanceData([]),
                 saveMarksData([])
             ]);
             hideLoading();
@@ -5236,6 +5425,7 @@
                 students: 'Students',
                 teachers: 'Teachers',
                 attendance: 'Attendance',
+                teacherAttendance: 'TeacherAttendance',
                 marks: 'Marks',
                 activity: 'Activity'
             }
@@ -5254,7 +5444,15 @@
             const saved = localStorage.getItem('gs_config');
             if (saved) {
                 try {
-                    return JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    return {
+                        ...GOOGLE_SHEETS_CONFIG,
+                        ...parsed,
+                        sheetsNames: {
+                            ...GOOGLE_SHEETS_CONFIG.sheetsNames,
+                            ...(parsed.sheetsNames || {})
+                        }
+                    };
                 } catch (e) {
                     return { ...GOOGLE_SHEETS_CONFIG };
                 }
@@ -5326,6 +5524,7 @@
                     { name: 'Students', data: JSON.parse(localStorage.getItem('gs_students') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.students },
                     { name: 'Teachers', data: JSON.parse(localStorage.getItem('gs_teachers') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.teachers },
                     { name: 'Attendance', data: JSON.parse(localStorage.getItem('gs_attendance') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.attendance },
+                    { name: 'TeacherAttendance', data: JSON.parse(localStorage.getItem('gs_teacher_attendance') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.teacherAttendance },
                     { name: 'Marks', data: JSON.parse(localStorage.getItem('gs_marks') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.marks },
                     { name: 'Activity', data: JSON.parse(localStorage.getItem('gs_activity') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.activity }
                 ];
@@ -5481,6 +5680,7 @@
                     ['students', 'gs_students'],
                     ['teachers', 'gs_teachers'],
                     ['attendance', 'gs_attendance'],
+                    ['teacherAttendance', 'gs_teacher_attendance'],
                     ['marks', 'gs_marks'],
                     ['activity', 'gs_activity']
                 ];
@@ -5592,6 +5792,10 @@
 
         async function saveAttendanceData(attendance) {
             return saveCollectionData('gs_attendance', GOOGLE_SHEETS_CONFIG.sheetsNames.attendance, attendance);
+        }
+
+        async function saveTeacherAttendanceData(teacherAttendance) {
+            return saveCollectionData('gs_teacher_attendance', GOOGLE_SHEETS_CONFIG.sheetsNames.teacherAttendance, teacherAttendance);
         }
 
         async function saveMarksData(marks) {

@@ -13,6 +13,7 @@ const SHEET_SCHEMAS = {
     'assignedClasses', 'joinDate', 'salary', 'address', 'createdAt'
   ],
   Attendance: ['id', 'date', 'class', 'lectureHours', 'records', 'savedBy', 'savedAt'],
+  TeacherAttendance: ['id', 'date', 'teacherId', 'teacherName', 'status', 'lectureHours', 'className', 'remarks', 'savedBy', 'savedAt'],
   Marks: ['id', 'test', 'subject', 'class', 'total', 'date', 'records', 'savedBy'],
   Activity: ['action', 'time']
 };
@@ -27,6 +28,7 @@ const NUMBER_FIELDS = {
   Students: ['feeAmount', 'feePaid'],
   Teachers: ['salary'],
   Attendance: ['lectureHours'],
+  TeacherAttendance: ['lectureHours'],
   Marks: ['total']
 };
 
@@ -124,6 +126,7 @@ function readAllSheets() {
     students: readSheet('Students'),
     teachers: readSheet('Teachers'),
     attendance: readSheet('Attendance'),
+    teacherAttendance: readSheet('TeacherAttendance'),
     marks: readSheet('Marks'),
     activity: readSheet('Activity')
   };
