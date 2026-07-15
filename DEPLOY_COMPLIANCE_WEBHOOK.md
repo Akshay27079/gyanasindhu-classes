@@ -31,6 +31,7 @@ Add these (if not already there):
 - `WHATSAPP_COMPLIANCE_LANGUAGE` = `mr`
 - `WHATSAPP_API_VERSION` = `v23.0`
 - `LOG_SHEET_ID` = (optional - your Google Sheet ID for logs)
+- `LOG_SHEET_NAME` = `WhatsApp Webhook Logs` (optional - the webhook creates this sheet automatically)
 
 ### 5. Deploy
 - Click **Deploy** → **Manage deployments**

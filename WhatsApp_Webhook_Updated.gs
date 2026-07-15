@@ -11,6 +11,7 @@
  *   WHATSAPP_COMPLIANCE_LANGUAGE    (default: mr)
  *   WHATSAPP_API_VERSION            (default: v23.0)
  *   LOG_SHEET_ID                    (optional — Google Sheet ID for logging)
+ *   LOG_SHEET_NAME                  (optional — default: WhatsApp Webhook Logs)
  */
 
 function getConfig() {
@@ -20,6 +21,7 @@ function getConfig() {
     ACCESS_TOKEN:           props.getProperty('WHATSAPP_ACCESS_TOKEN'),
     API_VERSION:            props.getProperty('WHATSAPP_API_VERSION') || 'v23.0',
     LOG_SHEET_ID:           props.getProperty('LOG_SHEET_ID'),
+    LOG_SHEET_NAME:         props.getProperty('LOG_SHEET_NAME') || 'WhatsApp Webhook Logs',
     TEMPLATES: {
       absence: {
         name:     props.getProperty('WHATSAPP_TEMPLATE_NAME')       || 'absence_notification_marathi',
@@ -78,14 +80,27 @@ function doPost(e) {
       return createResponse(false, 'Invalid parent phone number');
     }
 
+    // DEBUG: Log what we received
+    Logger.log('DEBUG - Raw noticeType from frontend: ' + JSON.stringify(data.noticeType));
+    
     const noticeType = normalizeNoticeType(data.noticeType);
+    
+    Logger.log('DEBUG - Normalized noticeType: ' + noticeType);
+    Logger.log('DEBUG - Will route to: ' + (noticeType === 'compliance' ? 'COMPLIANCE' : 'ABSENCE'));
+    
     const result = noticeType === 'compliance'
       ? sendComplianceNotification(data, config)
       : sendAbsenceNotification(data, config);
 
     logNotification(data, result, noticeType, config);
 
-    return createResponse(result.success, result.message, result.data);
+    // Add routing info to response
+    const responseData = result.data || {};
+    responseData.receivedNoticeType = data.noticeType;
+    responseData.normalizedNoticeType = noticeType;
+    responseData.routedTo = noticeType === 'compliance' ? 'compliance' : 'absence';
+
+    return createResponse(result.success, result.message, responseData);
 
   } catch (err) {
     Logger.log('doPost error: ' + err);
@@ -124,7 +139,9 @@ function sendAbsenceNotification(data, config) {
 
 // ── Compliance notification ────────────────────────────────────────────────
 function sendComplianceNotification(data, config) {
-  const template = config.TEMPLATES.compliance;
+  const template = config.TEMPLATES && config.TEMPLATES.compliance 
+    ? config.TEMPLATES.compliance 
+    : { name: 'compliance_notice_marathi', language: 'mr' };
   const payload = {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -179,6 +196,7 @@ function sendToWhatsAppAPI(payload, config, noticeType) {
     noticeType: noticeType || 'absence',
     templateName: payload.template && payload.template.name,
     templateLanguage: payload.template && payload.template.language && payload.template.language.code,
+    metaResponseCode: responseCode,
     meta: responseBody
   };
 
@@ -216,27 +234,98 @@ function formatMetaError(responseBody) {
 
 function logNotification(data, result, noticeType, config) {
   try {
+    const resultData = result.data || {};
+    const meta = resultData.meta || {};
+    const metaMessages = meta.messages || [];
+    const firstMessage = metaMessages[0] || {};
+    const metaContacts = meta.contacts || [];
+    const firstContact = metaContacts[0] || {};
+    const metaError = meta.error || {};
+    const logTime = new Date();
+
     Logger.log('Notification: ' + JSON.stringify({
       type: noticeType, student: data.studentName,
       phone: data.parentPhone, success: result.success,
-      timestamp: new Date().toISOString()
+      templateName: resultData.templateName,
+      timestamp: logTime.toISOString()
     }));
 
-    if (!config.LOG_SHEET_ID) return;
-    const ss = SpreadsheetApp.openById(config.LOG_SHEET_ID);
-    const sheet = ss.getSheetByName('Notifications') || ss.insertSheet('Notifications');
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow(['Time', 'Type', 'Parent Name', 'Student Name', 'Parent Phone', 'Date', 'Reason', 'Status', 'Message']);
+    if (!config.LOG_SHEET_ID) {
+      Logger.log('LOG_SHEET_ID not configured - skipping sheet logging');
+      return;
     }
+    
+    Logger.log('Attempting to open spreadsheet: ' + config.LOG_SHEET_ID);
+    const ss = SpreadsheetApp.openById(config.LOG_SHEET_ID);
+    Logger.log('Spreadsheet opened successfully');
+    
+    const sheet = getOrCreateLogSheet(ss, config.LOG_SHEET_NAME);
+    Logger.log('Sheet ready: ' + sheet.getName() + ' (last row: ' + sheet.getLastRow() + ')');
     sheet.appendRow([
-      new Date(), noticeType,
-      data.parentName, data.studentName, data.parentPhone,
-      data.noticeDate || data.date, data.reason || '-',
-      result.success ? 'SUCCESS' : 'FAILED', result.message
+      logTime,
+      data.noticeType || '',
+      noticeType,
+      noticeType === 'compliance' ? 'compliance' : 'absence',
+      resultData.templateName || '',
+      resultData.templateLanguage || '',
+      data.parentName || '',
+      data.studentName || '',
+      data.className || '',
+      data.parentPhone || '',
+      firstContact.wa_id || '',
+      data.noticeDate || data.date || '',
+      data.reason || '',
+      data.details || '',
+      result.success ? 'SUCCESS' : 'FAILED',
+      result.message || '',
+      resultData.metaResponseCode || '',
+      firstMessage.id || '',
+      firstMessage.message_status || '',
+      metaError.code || '',
+      metaError.message || '',
+      JSON.stringify(data),
+      JSON.stringify(meta)
     ]);
   } catch (err) {
     Logger.log('logNotification error: ' + err);
   }
+}
+
+function getOrCreateLogSheet(ss, sheetName) {
+  const name = sheetName || 'WhatsApp Webhook Logs';
+  const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+  const headers = [
+    'Time',
+    'Received Notice Type',
+    'Normalized Notice Type',
+    'Routed To',
+    'Template Name',
+    'Template Language',
+    'Parent Name',
+    'Student Name',
+    'Class',
+    'Parent Phone',
+    'WhatsApp ID',
+    'Notice Date',
+    'Reason',
+    'Details',
+    'Status',
+    'Webhook Message',
+    'Meta HTTP Code',
+    'Meta Message ID',
+    'Meta Message Status',
+    'Meta Error Code',
+    'Meta Error Message',
+    'Request JSON',
+    'Meta Response JSON'
+  ];
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+    sheet.setFrozenRows(1);
+  }
+
+  return sheet;
 }
 
 function createResponse(success, message, data) {
