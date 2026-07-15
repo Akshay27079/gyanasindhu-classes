@@ -753,30 +753,40 @@
 
             try {
                 const formattedDate = new Date(notice.date).toLocaleDateString('en-IN');
+                
+                const payload = {
+                    noticeType: 'compliance',
+                    parentPhone,
+                    parentName: student.parentName || 'Parent',
+                    studentName: student.name,
+                    className: student.class,
+                    date: formattedDate,
+                    reason: getComplianceReasonLabel(notice.reason),
+                    details: notice.details || '',
+                    message: buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date)
+                };
+                
+                console.log('🔵 Sending compliance payload:', payload);
+                
                 const response = await fetch(config.webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({
-                        noticeType: 'compliance',
-                        parentPhone,
-                        parentName: student.parentName || 'Parent',
-                        studentName: student.name,
-                        className: student.class,
-                        date: formattedDate,
-                        reason: getComplianceReasonLabel(notice.reason),
-                        details: notice.details || '',
-                        message: buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date)
-                    }),
+                    body: JSON.stringify(payload),
                     redirect: 'follow'
                 });
 
                 const responseText = await response.text();
+                console.log('🔵 Webhook response:', responseText);
+                
                 let result;
                 try {
                     result = JSON.parse(responseText);
                 } catch (error) {
                     throw new Error(`Webhook returned invalid JSON (${response.status})`);
                 }
+                
+                console.log('🔵 Parsed result:', result);
+                
                 if (!response.ok || !result.success) {
                     throw new Error(formatWhatsAppWebhookError(result.error || result.message || `Webhook failed with HTTP ${response.status}`));
                 }
