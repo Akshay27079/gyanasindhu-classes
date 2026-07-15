@@ -544,7 +544,7 @@
             // Hardcoded webhook URL - no localStorage
             return {
                 enabled: true,
-                webhookUrl: 'https://script.google.com/macros/s/AKfycbwomevIxuLnjMhs3v-AsH4ckXHP2DlSIQOTDT4dOavfo3KU6_ZoxWDEKJgZRwvNXR1u/exec',
+                 webhookUrl: 'https://script.google.com/macros/s/AKfycbxdzamuKvTIPaDhTA_nVCZsXagcKHZ6emK8pke6dqzxS2gxOcq7HpXXEfiAPugtOw/exec',
                 phoneNumberId: '1069373496268642',
                 accessToken: ''
             };
@@ -766,7 +766,20 @@
                     message: buildComplianceNoticeMessage(student, notice.reason, notice.details, notice.date)
                 };
                 
-                console.log('🔵 Sending compliance payload:', payload);
+                console.log('═══════════════════════════════════════════════════');
+                console.log('� COMPLIANCE NOTICE - Sending to WhatsApp Webhook');
+                console.log('═══════════════════════════════════════════════════');
+                console.log('Webhook URL:', config.webhookUrl);
+                console.log('Notice Type:', payload.noticeType);
+                console.log('Student:', payload.studentName);
+                console.log('Class:', payload.className);
+                console.log('Parent:', payload.parentName);
+                console.log('Phone:', payload.parentPhone);
+                console.log('Date:', payload.date);
+                console.log('Reason:', payload.reason);
+                console.log('Details:', payload.details);
+                console.log('Full Payload:', JSON.stringify(payload, null, 2));
+                console.log('═══════════════════════════════════════════════════');
                 
                 const response = await fetch(config.webhookUrl, {
                     method: 'POST',
