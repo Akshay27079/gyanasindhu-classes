@@ -541,21 +541,12 @@
         
         // Get WhatsApp configuration
         function getWhatsAppConfig() {
-            const config = localStorage.getItem('dnyansindhu_whatsapp_config');
-            const savedConfig = config ? JSON.parse(config) : {
-                enabled: false,
+            // Hardcoded webhook URL - no localStorage
+            return {
+                enabled: true,
                 webhookUrl: 'https://script.google.com/macros/s/AKfycbzo4k_dY9bX7ylsu7tvBKseCeFGsZxC_Ocfkbj1rac/dev',
                 phoneNumberId: '1069373496268642',
                 accessToken: ''
-            };
-            if (savedConfig.accessToken) {
-                sessionStorage.setItem(WHATSAPP_ACCESS_TOKEN_KEY, savedConfig.accessToken);
-                const { accessToken, ...safeConfig } = savedConfig;
-                localStorage.setItem('dnyansindhu_whatsapp_config', JSON.stringify(safeConfig));
-            }
-            return {
-                ...savedConfig,
-                accessToken: sessionStorage.getItem(WHATSAPP_ACCESS_TOKEN_KEY) || ''
             };
         }
         
