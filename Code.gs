@@ -12,7 +12,7 @@ const SHEET_SCHEMAS = {
     'id', 'username', 'password', 'name', 'phone', 'subject', 'qualification',
     'assignedClasses', 'joinDate', 'salary', 'address', 'createdAt'
   ],
-  Attendance: ['id', 'date', 'class', 'records', 'savedBy', 'savedAt'],
+  Attendance: ['id', 'date', 'class', 'lectureHours', 'records', 'savedBy', 'savedAt'],
   Marks: ['id', 'test', 'subject', 'class', 'total', 'date', 'records', 'savedBy'],
   Activity: ['action', 'time']
 };
@@ -26,6 +26,7 @@ const JSON_FIELDS = {
 const NUMBER_FIELDS = {
   Students: ['feeAmount', 'feePaid'],
   Teachers: ['salary'],
+  Attendance: ['lectureHours'],
   Marks: ['total']
 };
 

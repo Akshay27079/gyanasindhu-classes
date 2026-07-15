@@ -1356,6 +1356,7 @@
                     { id: 'attendance', icon: 'calendar-check', label: 'उपस्थिती' },
                     { id: 'marks', icon: 'chart-bar', label: 'गुण/निकाल' },
                     { id: 'compliance', icon: 'bell', label: 'अनुपालन सूचना' },
+                    { id: 'salary-slips', icon: 'receipt', label: 'Salary Slips' },
                     { id: 'reports', icon: 'file-alt', label: 'रिपोर्ट्स' },
                     { id: 'settings', icon: 'cog', label: 'सेटिंग्ज' }
                 ];
@@ -1411,6 +1412,7 @@
                     case 'attendance': renderAdminAttendance(); break;
                     case 'marks': renderAdminMarks(); break;
                     case 'compliance': renderAdminCompliance(); break;
+                    case 'salary-slips': renderAdminSalarySlips(); break;
                     case 'reports': renderAdminReports(); break;
                     case 'settings': renderAdminSettings(); break;
                 }
@@ -2929,6 +2931,10 @@
                                 <option value="12">12</option>
                             </select>
                         </div>
+                        <div>
+                            <label>Lecture Hours *</label>
+                            <input type="number" id="attendanceLectureHours" value="1" min="0.25" step="0.25">
+                        </div>
                     </div>
                     <button onclick="loadAttendanceGrid()" class="btn-gold mb-4">Load Students</button>
                     
@@ -2990,6 +2996,7 @@
             
             const date = document.getElementById('attendanceDate').value;
             const selectedClass = document.getElementById('attendanceClass').value;
+            const lectureHours = parseFloat(document.getElementById('attendanceLectureHours').value) || 1;
             console.log(`🔵 [ATTENDANCE] Date: ${date}, Class: ${selectedClass}`);
             
             // Check for duplicate attendance
@@ -3016,6 +3023,7 @@
                 id: uuid(),
                 date,
                 class: selectedClass,
+                lectureHours,
                 records,
                 savedBy: currentSession.role === 'admin' ? 'admin' : currentSession.id,
                 savedAt: new Date().toISOString()
@@ -3082,6 +3090,7 @@
                                 <th>Class</th>
                                 <th>Present</th>
                                 <th>Absent</th>
+                                <th>Hours</th>
                                 <th>Saved By</th>
                             </tr>
                         </thead>
@@ -3095,6 +3104,7 @@
                                         <td>${a.class}</td>
                                         <td class="text-green-400">${present}</td>
                                         <td class="text-red-400">${absent}</td>
+                                        <td>${Number(a.lectureHours || 1).toFixed(2)}</td>
                                         <td>${a.savedBy}</td>
                                     </tr>
                                 `;
@@ -3103,6 +3113,257 @@
                     </table>
                 </div>
             `;
+        }
+
+        // ============================================
+        // ADMIN: TEACHER SALARY SLIPS
+        // ============================================
+
+        function renderAdminSalarySlips() {
+            document.getElementById('pageTitle').textContent = 'Teacher Salary Slips';
+
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers') || '[]');
+            const teacherOptions = teachers
+                .slice()
+                .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+                .map(teacher => `<option value="${teacher.id}">${escapeHtml(teacher.name)} - ${escapeHtml(teacher.subject || 'Subject not set')}</option>`)
+                .join('');
+            const currentMonth = new Date().toISOString().slice(0, 7);
+
+            document.getElementById('contentArea').innerHTML = `
+                <div class="glass-card p-6 mb-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">Generate Teacher Salary Slip</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label>Teacher *</label>
+                            <select id="salaryTeacher">
+                                <option value="">Select Teacher</option>
+                                ${teacherOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label>Month *</label>
+                            <input type="month" id="salaryMonth" value="${currentMonth}">
+                        </div>
+                        <div>
+                            <label>Expected Monthly Hours *</label>
+                            <input type="number" id="salaryExpectedHours" value="60" min="1" step="0.5">
+                        </div>
+                        <div>
+                            <label>Adjustments</label>
+                            <input type="number" id="salaryAdjustment" value="0" step="1" placeholder="Bonus or deduction">
+                        </div>
+                    </div>
+                    <button onclick="generateTeacherSalarySlip()" class="btn-gold">
+                        <i class="fas fa-receipt mr-2"></i>Generate Salary Slip
+                    </button>
+                </div>
+
+                <div id="salarySlipPreview" class="glass-card p-6 hidden">
+                    <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-3 mb-4">
+                        <h3 class="text-xl font-bold gold-accent">Salary Slip Preview</h3>
+                        <div class="flex gap-2">
+                            <button onclick="printSalarySlip()" class="btn-gold">
+                                <i class="fas fa-print mr-2"></i>Print
+                            </button>
+                            <button onclick="closeSalarySlipPreview()" class="btn-gold">
+                                <i class="fas fa-times mr-2"></i>Close
+                            </button>
+                        </div>
+                    </div>
+                    <div id="salarySlipContent" class="bg-white text-black p-8 rounded"></div>
+                </div>
+            `;
+        }
+
+        function generateTeacherSalarySlip() {
+            const teacherId = document.getElementById('salaryTeacher').value;
+            const month = document.getElementById('salaryMonth').value;
+            const expectedHours = parseFloat(document.getElementById('salaryExpectedHours').value) || 0;
+            const adjustment = parseFloat(document.getElementById('salaryAdjustment').value) || 0;
+
+            if (!teacherId || !month || expectedHours <= 0) {
+                showToast('Please select teacher, month, and expected hours', 'error');
+                return;
+            }
+
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers') || '[]');
+            const teacher = teachers.find(t => t.id === teacherId);
+            if (!teacher) {
+                showToast('Teacher not found', 'error');
+                return;
+            }
+
+            const slip = calculateTeacherSalarySlip(teacher, month, expectedHours, adjustment);
+            displayTeacherSalarySlip(slip);
+        }
+
+        function calculateTeacherSalarySlip(teacher, month, expectedHours, adjustment) {
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
+            const [year, monthNum] = month.split('-').map(Number);
+            const monthlySalary = parseFloat(teacher.salary) || 0;
+            const hourlyRate = expectedHours > 0 ? monthlySalary / expectedHours : 0;
+
+            const lectureRecords = attendance.filter(record => {
+                const recordDate = new Date(record.date);
+                return record.savedBy === teacher.id &&
+                    recordDate.getFullYear() === year &&
+                    (recordDate.getMonth() + 1) === monthNum;
+            });
+
+            const coveredHours = lectureRecords.reduce((total, record) => {
+                const hours = parseFloat(record.lectureHours);
+                return total + (Number.isFinite(hours) && hours > 0 ? hours : 1);
+            }, 0);
+            const payableBeforeAdjustment = hourlyRate * coveredHours;
+            const payableSalary = Math.max(0, payableBeforeAdjustment + adjustment);
+            const shortfallHours = Math.max(0, expectedHours - coveredHours);
+            const monthLabel = new Date(year, monthNum - 1, 1).toLocaleDateString('en-IN', {
+                month: 'long',
+                year: 'numeric'
+            });
+
+            return {
+                teacher,
+                monthLabel,
+                expectedHours,
+                coveredHours,
+                shortfallHours,
+                lectureCount: lectureRecords.length,
+                monthlySalary,
+                hourlyRate,
+                adjustment,
+                payableBeforeAdjustment,
+                payableSalary,
+                lectureRecords
+            };
+        }
+
+        function formatCurrencyINR(amount) {
+            return `₹${Math.round(Number(amount) || 0).toLocaleString('en-IN')}`;
+        }
+
+        function displayTeacherSalarySlip(slip) {
+            const preview = document.getElementById('salarySlipPreview');
+            const content = document.getElementById('salarySlipContent');
+            const teacher = slip.teacher;
+
+            content.innerHTML = `
+                <div class="text-center mb-6">
+                    <img src="Logo.jpg" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px;">
+                    <h1 class="text-2xl font-bold" style="color: #f5c518;">ज्ञानसिंधू क्लासेस</h1>
+                    <p class="text-sm">नेरळ</p>
+                    <h2 class="text-xl font-bold mt-4">Teacher Salary Slip</h2>
+                    <p class="text-sm">${escapeHtml(slip.monthLabel)}</p>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="font-bold mb-2" style="color: #f5c518;">Teacher Information</h3>
+                    <table class="w-full">
+                        <tr>
+                            <td><strong>Name:</strong></td>
+                            <td>${escapeHtml(teacher.name)}</td>
+                            <td><strong>Subject:</strong></td>
+                            <td>${escapeHtml(teacher.subject || '-')}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Phone:</strong></td>
+                            <td>${escapeHtml(teacher.phone || '-')}</td>
+                            <td><strong>Assigned Classes:</strong></td>
+                            <td>${escapeHtml((teacher.assignedClasses || []).join(', ') || '-')}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="font-bold mb-2" style="color: #f5c518;">Salary Calculation</h3>
+                    <table class="w-full" style="border: 1px solid #ccc;">
+                        <tr>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Monthly Fixed Salary</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${formatCurrencyINR(slip.monthlySalary)}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Expected Monthly Hours</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${slip.expectedHours.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Hourly Rate</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${formatCurrencyINR(slip.hourlyRate)}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Lectures Present</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${slip.lectureCount}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Hours Covered</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${slip.coveredHours.toFixed(2)}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Shortfall Hours</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${slip.shortfallHours.toFixed(2)}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Salary Before Adjustment</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${formatCurrencyINR(slip.payableBeforeAdjustment)}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;"><strong>Adjustment</strong></td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${formatCurrencyINR(slip.adjustment)}</td>
+                        </tr>
+                        <tr style="background: #f5c518; color: #000; font-weight: bold;">
+                            <td style="border: 1px solid #ccc; padding: 8px;" colspan="3">Net Payable Salary</td>
+                            <td style="border: 1px solid #ccc; padding: 8px;">${formatCurrencyINR(slip.payableSalary)}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="font-bold mb-2" style="color: #f5c518;">Lecture Details</h3>
+                    ${slip.lectureRecords.length ? `
+                        <table class="w-full" style="border: 1px solid #ccc;">
+                            <thead style="background: #f5c518; color: #000;">
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Date</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Class</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Hours</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px;">Students Present</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${slip.lectureRecords.map(record => {
+                                    const present = (record.records || []).filter(item => item.present).length;
+                                    const hours = parseFloat(record.lectureHours) || 1;
+                                    return `
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 8px;">${escapeHtml(record.date)}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px;">${escapeHtml(record.class)}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${hours.toFixed(2)}</td>
+                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${present}/${(record.records || []).length}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<p class="text-gray-600">No teacher-saved lectures found for this month.</p>'}
+                </div>
+
+                <div class="mt-8 text-sm">
+                    <p>Generated on: ${new Date().toLocaleDateString('en-IN')}</p>
+                    <p class="mt-4">______________________</p>
+                    <p>Authorized Signature</p>
+                </div>
+            `;
+
+            preview.classList.remove('hidden');
+            preview.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function closeSalarySlipPreview() {
+            document.getElementById('salarySlipPreview').classList.add('hidden');
+        }
+
+        function printSalarySlip() {
+            const content = document.getElementById('salarySlipContent').innerHTML;
+            const printWindow = window.open('', '', 'height=600,width=800');
+            printWindow.document.write('<html><head><title>Teacher Salary Slip</title>');
+            printWindow.document.write('<style>body{font-family: Arial, sans-serif; padding: 20px;} table{border-collapse: collapse;} th,td{font-size: 13px;}</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(content);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
         }
         
         // ============================================
@@ -4279,6 +4540,10 @@
                                 ${teacher.assignedClasses.map(c => `<option value="${c}">${c}</option>`).join('')}
                             </select>
                         </div>
+                        <div>
+                            <label>Lecture Hours *</label>
+                            <input type="number" id="teacherAttendanceLectureHours" value="1" min="0.25" step="0.25">
+                        </div>
                     </div>
                     <button onclick="loadTeacherAttendanceGrid()" class="btn-gold mb-4">Load Students</button>
                     
@@ -4331,6 +4596,7 @@
         async function saveTeacherAttendance() {
             const date = document.getElementById('teacherAttendanceDate').value;
             const selectedClass = document.getElementById('teacherAttendanceClass').value;
+            const lectureHours = parseFloat(document.getElementById('teacherAttendanceLectureHours').value) || 1;
             const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
             
             const records = students.map(s => ({
@@ -4344,6 +4610,7 @@
                 id: uuid(),
                 date,
                 class: selectedClass,
+                lectureHours,
                 records,
                 savedBy: currentSession.id,
                 savedAt: new Date().toISOString()
