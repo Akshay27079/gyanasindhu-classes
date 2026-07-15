@@ -760,6 +760,7 @@
                     parentName: student.parentName || 'Parent',
                     studentName: student.name,
                     className: student.class,
+                    noticeDate: new Date(notice.date).toLocaleDateString('en-IN'),
                     date: formattedDate,
                     reason: getComplianceReasonLabel(notice.reason),
                     details: notice.details || '',
@@ -802,6 +803,10 @@
                 
                 if (!response.ok || !result.success) {
                     throw new Error(formatWhatsAppWebhookError(result.error || result.message || `Webhook failed with HTTP ${response.status}`));
+                }
+
+                if (!result.data || result.data.noticeType !== 'compliance') {
+                    throw new Error('Webhook did not confirm the template used. Deploy WhatsApp_Webhook_Updated.gs and save the new Web App URL in WhatsApp Settings.');
                 }
 
                 logNotification({
