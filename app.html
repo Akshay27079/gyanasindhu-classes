@@ -1419,6 +1419,7 @@
                     case 'compliance': renderAdminCompliance(); break;
                     case 'salary-slips': renderAdminSalarySlips(); break;
                     case 'reports': renderAdminReports(); break;
+                    case 'pending-registrations': renderPendingRegistrations(); break;
                     case 'settings': renderAdminSettings(); break;
                 }
             } else if (currentSession.role === 'teacher') {
@@ -5846,6 +5847,25 @@
 
         // Update sync status UI periodically
         setInterval(updateSyncStatusUI, 5000);
+
+        // ============================================
+        // COPY REGISTRATION LINK
+        // ============================================
+        
+        function copyRegistrationLink() {
+            const token = 'dnya2026';
+            const link = `${window.location.origin}/registration.html?token=${token}`;
+            
+            navigator.clipboard.writeText(link).then(() => {
+                showToast('Registration link copied to clipboard!', 'success');
+            }).catch(err => {
+                showToast('Failed to copy link. Link: ' + link, 'error');
+                console.error('Copy failed:', err);
+            });
+        }
     </script>
+    
+    <!-- Pending Registrations Management -->
+    <script src="pending-registrations.js"></script>
 </body>
 </html>
