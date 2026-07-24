@@ -386,6 +386,41 @@
     <script>
         // Configuration
         const PENDING_REGISTRATIONS_KEY = 'dnyansindhu_pending_registrations';
+        const ACCESS_TOKEN = 'dnya2026'; // Simple access token
+        
+        // Check access token on page load
+        (function checkAccess() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token') || sessionStorage.getItem('registration_access');
+            
+            if (token !== ACCESS_TOKEN) {
+                document.body.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 20px;">
+                        <div class="glass-card" style="padding: 40px; max-width: 500px;">
+                            <i class="fas fa-lock" style="font-size: 64px; color: #f5c518; margin-bottom: 20px;"></i>
+                            <h1 style="color: #f5c518; margin-bottom: 20px;">Access Restricted</h1>
+                            <p style="color: #ccc; margin-bottom: 20px;">
+                                या पृष्ठावर प्रवेश मर्यादित आहे.<br>
+                                This page is restricted to authorized users only.
+                            </p>
+                            <p style="color: #999; font-size: 14px;">
+                                कृपया प्रशासकाकडून योग्य लिंक मागवा.<br>
+                                Please request the correct link from admin.
+                            </p>
+                            <p style="margin-top: 30px;">
+                                <a href="index.html" class="btn-gold">
+                                    <i class="fas fa-home mr-2"></i>मुख्य पृष्ठावर जा | Go to Homepage
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Store token in session
+            sessionStorage.setItem('registration_access', token);
+        })();
         
         // Switch between student and teacher tabs
         function switchTab(type) {
