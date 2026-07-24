@@ -102,6 +102,7 @@ async function approveStudentRegistration(registrationId) {
         stream: registration.data.stream || '',
         medium: registration.data.medium,
         phone: registration.data.phone,
+        whatsapp: registration.data.phone,
         parentPhone: registration.data.parentPhone,
         parentName: registration.data.parentName,
         address: registration.data.address,
