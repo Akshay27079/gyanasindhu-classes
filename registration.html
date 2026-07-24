@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0a1a">
+    <title>ज्ञानसिंधू क्लासेस - नोंदणी | Registration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .gold-accent { color: #f5c518; }
+        
+        .btn-gold {
+            background: #f5c518;
+            color: #0a0a1a;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 44px;
+            width: 100%;
+        }
+        
+        .btn-gold:hover {
+            background: #d4a817;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 197, 24, 0.4);
+        }
+        
+        .btn-gold:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: transparent;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .tab-button.active {
+            background: #f5c518;
+            color: #0a0a1a;
+            border-color: #f5c518;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #f5c518;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .error-message {
+            color: #ff4444;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .success-message {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            color: #22c55e;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .hidden { display: none !important; }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #f5c518;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 640px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            body {
+                padding: 10px;
+            }
+            .glass-card {
+                padding: 1.5rem;
+            }
+        }
+        
+        .required::after {
+            content: " *";
+            color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="glass-card">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold gold-accent mb-2">ज्ञानसिंधू क्लासेस</h1>
+            <p class="text-gray-300">Dnyansindhu Classes, Neral</p>
+            <p class="text-sm text-gray-400 mt-2">नवीन नोंदणी | New Registration</p>
+        </div>
+        
+        <!-- Registration Type Tabs -->
+        <div class="flex gap-3 mb-6">
+            <button class="tab-button active" id="studentTab" onclick="switchTab('student')">
+                <i class="fas fa-user-graduate"></i> विद्यार्थी | Student
+            </button>
+            <button class="tab-button" id="teacherTab" onclick="switchTab('teacher')">
+                <i class="fas fa-chalkboard-teacher"></i> शिक्षक | Teacher
+            </button>
+        </div>
+        
+        <!-- Info Box -->
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <strong>नोंद:</strong> नोंदणी केल्यानंतर, प्रशासक तुमच्या माहितीची पडताळणी करेल. मंजुरी मिळाल्यानंतर तुम्हाला WhatsApp वर लॉगिन तपशील मिळतील.
+            <br><br>
+            <strong>Note:</strong> After registration, admin will review your details. You will receive login credentials via WhatsApp once approved.
+        </div>
+        
+        <!-- Success Message -->
+        <div id="successMessage" class="success-message hidden">
+            <i class="fas fa-check-circle"></i>
+            <strong>नोंदणी यशस्वी!</strong> Registration Successful!
+            <p class="mt-2" id="successText"></p>
+        </div>
+        
+        <!-- Student Registration Form -->
+        <form id="studentForm" class="registration-form">
+            <h3 class="text-xl font-bold mb-4 gold-accent">विद्यार्थी माहिती | Student Information</h3>
+            
+            <div class="form-group">
+                <label class="required">विद्यार्थ्याचे पूर्ण नाव | Student Full Name</label>
+                <input type="text" id="studentName" placeholder="उदा: अक्षय बोराडे" required>
+                <div class="error-message hidden" id="studentNameError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">वडिलांचे नाव | Father's Name</label>
+                <input type="text" id="fatherName" placeholder="उदा: दीपक बोराडे" required>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="required">इयत्ता | Class</label>
+                    <select id="studentClass" required onchange="toggleStream()">
+                        <option value="">निवडा | Select</option>
+                        <option value="1">1st</option>
+                        <option value="2">2nd</option>
+                        <option value="3">3rd</option>
+                        <option value="4">4th</option>
+                        <option value="5">5th</option>
+                        <option value="6">6th</option>
+                        <option value="7">7th</option>
+                        <option value="8">8th</option>
+                        <option value="9">9th</option>
+                        <option value="10">10th</option>
+                        <option value="11">11th</option>
+                        <option value="12">12th</option>
+                    </select>
+                </div>
+                
+                <div class="form-group hidden" id="streamGroup">
+                    <label class="required">प्रवाह | Stream</label>
+                    <select id="studentStream">
+                        <option value="">निवडा | Select</option>
+                        <option value="Science">Science</option>
+                        <option value="Commerce">Commerce</option>
+                        <option value="Arts">Arts</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">माध्यम | Medium</label>
+                <select id="studentMedium" required>
+                    <option value="">निवडा | Select</option>
+                    <option value="Marathi">Marathi</option>
+                    <option value="Semi-English">Semi-English</option>
+                    <option value="English">English</option>
+                </select>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="required">विद्यार्थ्याचा फोन | Student Phone</label>
+                    <input type="tel" id="studentPhone" placeholder="9876543210" pattern="[6-9][0-9]{9}" required>
+                    <div class="error-message hidden" id="studentPhoneError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="required">पालकाचा फोन | Parent Phone</label>
+                    <input type="tel" id="parentPhone" placeholder="9876543210" pattern="[6-9][0-9]{9}" required>
+                    <div class="error-message hidden" id="parentPhoneError"></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">पालकाचे नाव | Parent Name</label>
+                <input type="text" id="parentName" placeholder="उदा: दीपक बोराडे" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">पत्ता | Address</label>
+                <textarea id="studentAddress" rows="3" placeholder="उदा: नेरळ, रायगड, महाराष्ट्र" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">प्रवेश तारीख | Admission Date</label>
+                <input type="date" id="admissionDate" required>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="studentTerms" required style="width: auto; display: inline-block; margin-right: 8px;">
+                    मी अटी व शर्ती स्वीकारतो | I agree to terms and conditions
+                </label>
+            </div>
+            
+            <button type="submit" class="btn-gold">
+                <i class="fas fa-user-plus"></i> नोंदणी करा | Submit Registration
+            </button>
+        </form>
+        
+        <!-- Teacher Registration Form -->
+        <form id="teacherForm" class="registration-form hidden">
+            <h3 class="text-xl font-bold mb-4 gold-accent">शिक्षक माहिती | Teacher Information</h3>
+            
+            <div class="form-group">
+                <label class="required">पूर्ण नाव | Full Name</label>
+                <input type="text" id="teacherName" placeholder="उदा: सुरेश पाटील" required>
+                <div class="error-message hidden" id="teacherNameError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">फोन नंबर | Phone Number</label>
+                <input type="tel" id="teacherPhone" placeholder="9876543210" pattern="[6-9][0-9]{9}" required>
+                <div class="error-message hidden" id="teacherPhoneError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="required">विषय | Subject</label>
+                <input type="text" id="teacherSubject" placeholder="उदा: गणित, विज्ञान | Mathematics, Science" required>
+            </div>
+            
+            <div class="form-group">
+                <label>शैक्षणिक पात्रता | Qualification</label>
+                <input type="text" id="teacherQualification" placeholder="उदा: B.Sc., M.A., B.Ed.">
+            </div>
+            
+            <div class="form-group">
+                <label>अनुभव | Experience (years)</label>
+                <input type="number" id="teacherExperience" placeholder="5" min="0">
+            </div>
+            
+            <div class="form-group">
+                <label class="required">कोणत्या इयत्तांना शिकवू इच्छिता? | Which classes will you teach?</label>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="1"> 1st</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="2"> 2nd</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="3"> 3rd</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="4"> 4th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="5"> 5th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="6"> 6th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="7"> 7th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="8"> 8th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="9"> 9th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="10"> 10th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="11"> 11th</label>
+                    <label style="font-weight: normal;"><input type="checkbox" class="teacherClasses" value="12"> 12th</label>
+                </div>
+                <div class="error-message hidden" id="teacherClassesError"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>पत्ता | Address</label>
+                <textarea id="teacherAddress" rows="3" placeholder="उदा: नेरळ, रायगड, महाराष्ट्र"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="teacherTerms" required style="width: auto; display: inline-block; margin-right: 8px;">
+                    मी अटी व शर्ती स्वीकारतो | I agree to terms and conditions
+                </label>
+            </div>
+            
+            <button type="submit" class="btn-gold">
+                <i class="fas fa-user-plus"></i> नोंदणी करा | Submit Registration
+            </button>
+        </form>
+        
+        <!-- Already have account -->
+        <div class="text-center mt-6">
+            <p class="text-gray-400">
+                आधीच खाते आहे? | Already have an account?
+                <a href="app.html" class="gold-accent hover:underline ml-2">
+                    <i class="fas fa-sign-in-alt"></i> लॉगिन | Login
+                </a>
+            </p>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const PENDING_REGISTRATIONS_KEY = 'dnyansindhu_pending_registrations';
+        
+        // Switch between student and teacher tabs
+        function switchTab(type) {
+            const studentTab = document.getElementById('studentTab');
+            const teacherTab = document.getElementById('teacherTab');
+            const studentForm = document.getElementById('studentForm');
+            const teacherForm = document.getElementById('teacherForm');
+            
+            if (type === 'student') {
+                studentTab.classList.add('active');
+                teacherTab.classList.remove('active');
+                studentForm.classList.remove('hidden');
+                teacherForm.classList.add('hidden');
+            } else {
+                teacherTab.classList.add('active');
+                studentTab.classList.remove('active');
+                teacherForm.classList.remove('hidden');
+                studentForm.classList.add('hidden');
+            }
+            
+            // Hide success message when switching
+            document.getElementById('successMessage').classList.add('hidden');
+        }
+        
+        // Toggle stream field for class 11 and 12
+        function toggleStream() {
+            const classValue = document.getElementById('studentClass').value;
+            const streamGroup = document.getElementById('streamGroup');
+            const streamSelect = document.getElementById('studentStream');
+            
+            if (classValue === '11' || classValue === '12') {
+                streamGroup.classList.remove('hidden');
+                streamSelect.required = true;
+            } else {
+                streamGroup.classList.add('hidden');
+                streamSelect.required = false;
+                streamSelect.value = '';
+            }
+        }
+        
+        // Validate phone number
+        function validatePhone(phone) {
+            const pattern = /^[6-9][0-9]{9}$/;
+            return pattern.test(phone);
+        }
+        
+        // Check for duplicate phone number
+        function checkDuplicatePhone(phone, type) {
+            // Check in existing students/teachers
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers') || '[]');
+            
+            if (type === 'student') {
+                const duplicate = students.find(s => 
+                    s.phone === phone || s.parentPhone === phone
+                );
+                if (duplicate) return 'This phone number is already registered';
+            } else {
+                const duplicate = teachers.find(t => t.phone === phone);
+                if (duplicate) return 'This phone number is already registered';
+            }
+            
+            // Check in pending registrations
+            const pending = JSON.parse(localStorage.getItem(PENDING_REGISTRATIONS_KEY) || '[]');
+            const pendingDuplicate = pending.find(p => 
+                p.status === 'pending' && (
+                    (p.type === 'student' && (p.data.phone === phone || p.data.parentPhone === phone)) ||
+                    (p.type === 'teacher' && p.data.phone === phone)
+                )
+            );
+            if (pendingDuplicate) return 'A registration with this phone number is already pending approval';
+            
+            return null;
+        }
+        
+        // Generate unique ID
+        function generateId(type) {
+            const prefix = type === 'student' ? 'PEND-STU' : 'PEND-TCH';
+            const timestamp = Date.now();
+            const random = Math.floor(Math.random() * 1000);
+            return `${prefix}${timestamp}${random}`;
+        }
+        
+        // Student form submission
+        document.getElementById('studentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Clear previous errors
+            document.querySelectorAll('.error-message').forEach(el => el.classList.add('hidden'));
+            
+            // Get form values
+            const name = document.getElementById('studentName').value.trim();
+            const fatherName = document.getElementById('fatherName').value.trim();
+            const studentClass = document.getElementById('studentClass').value;
+            const stream = document.getElementById('studentStream').value;
+            const medium = document.getElementById('studentMedium').value;
+            const phone = document.getElementById('studentPhone').value.trim();
+            const parentPhone = document.getElementById('parentPhone').value.trim();
+            const parentName = document.getElementById('parentName').value.trim();
+            const address = document.getElementById('studentAddress').value.trim();
+            const admissionDate = document.getElementById('admissionDate').value;
+            
+            // Validate
+            let hasError = false;
+            
+            if (!name) {
+                showError('studentNameError', 'Name is required');
+                hasError = true;
+            }
+            
+            if (!validatePhone(phone)) {
+                showError('studentPhoneError', 'Invalid phone number (must be 10 digits starting with 6-9)');
+                hasError = true;
+            }
+            
+            if (!validatePhone(parentPhone)) {
+                showError('parentPhoneError', 'Invalid phone number (must be 10 digits starting with 6-9)');
+                hasError = true;
+            }
+            
+            // Check duplicates
+            const studentPhoneDup = checkDuplicatePhone(phone, 'student');
+            if (studentPhoneDup) {
+                showError('studentPhoneError', studentPhoneDup);
+                hasError = true;
+            }
+            
+            const parentPhoneDup = checkDuplicatePhone(parentPhone, 'student');
+            if (parentPhoneDup) {
+                showError('parentPhoneError', parentPhoneDup);
+                hasError = true;
+            }
+            
+            if ((studentClass === '11' || studentClass === '12') && !stream) {
+                alert('कृपया प्रवाह निवडा | Please select stream for class 11/12');
+                hasError = true;
+            }
+            
+            if (hasError) return;
+            
+            // Create registration object
+            const registration = {
+                id: generateId('student'),
+                type: 'student',
+                status: 'pending',
+                submittedAt: new Date().toISOString(),
+                data: {
+                    name,
+                    fatherName,
+                    class: studentClass,
+                    stream: stream || '',
+                    medium,
+                    phone,
+                    parentPhone,
+                    parentName,
+                    address,
+                    admissionDate
+                }
+            };
+            
+            // Save to pending registrations
+            const pending = JSON.parse(localStorage.getItem(PENDING_REGISTRATIONS_KEY) || '[]');
+            pending.push(registration);
+            localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(pending));
+            
+            // Show success message
+            showSuccess(
+                `धन्यवाद, ${name}! तुमची नोंदणी यशस्वी झाली आहे.<br>` +
+                `Thank you, ${name}! Your registration has been submitted.<br><br>` +
+                `तुमची माहिती तपासल्यानंतर तुम्हाला <strong>${parentPhone}</strong> वर WhatsApp द्वारे लॉगिन तपशील मिळतील.<br>` +
+                `You will receive login credentials on <strong>${parentPhone}</strong> via WhatsApp after admin approval.`
+            );
+            
+            // Reset form
+            this.reset();
+            toggleStream();
+        });
+        
+        // Teacher form submission
+        document.getElementById('teacherForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Clear previous errors
+            document.querySelectorAll('.error-message').forEach(el => el.classList.add('hidden'));
+            
+            // Get form values
+            const name = document.getElementById('teacherName').value.trim();
+            const phone = document.getElementById('teacherPhone').value.trim();
+            const subject = document.getElementById('teacherSubject').value.trim();
+            const qualification = document.getElementById('teacherQualification').value.trim();
+            const experience = document.getElementById('teacherExperience').value;
+            const address = document.getElementById('teacherAddress').value.trim();
+            
+            // Get assigned classes
+            const assignedClasses = [];
+            document.querySelectorAll('.teacherClasses:checked').forEach(cb => {
+                assignedClasses.push(cb.value);
+            });
+            
+            // Validate
+            let hasError = false;
+            
+            if (!name) {
+                showError('teacherNameError', 'Name is required');
+                hasError = true;
+            }
+            
+            if (!validatePhone(phone)) {
+                showError('teacherPhoneError', 'Invalid phone number (must be 10 digits starting with 6-9)');
+                hasError = true;
+            }
+            
+            // Check duplicates
+            const phoneDup = checkDuplicatePhone(phone, 'teacher');
+            if (phoneDup) {
+                showError('teacherPhoneError', phoneDup);
+                hasError = true;
+            }
+            
+            if (assignedClasses.length === 0) {
+                showError('teacherClassesError', 'Please select at least one class');
+                hasError = true;
+            }
+            
+            if (hasError) return;
+            
+            // Create registration object
+            const registration = {
+                id: generateId('teacher'),
+                type: 'teacher',
+                status: 'pending',
+                submittedAt: new Date().toISOString(),
+                data: {
+                    name,
+                    phone,
+                    subject,
+                    qualification: qualification || '',
+                    experience: experience || 0,
+                    assignedClasses,
+                    address: address || ''
+                }
+            };
+            
+            // Save to pending registrations
+            const pending = JSON.parse(localStorage.getItem(PENDING_REGISTRATIONS_KEY) || '[]');
+            pending.push(registration);
+            localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(pending));
+            
+            // Show success message
+            showSuccess(
+                `धन्यवाद, ${name}! तुमची नोंदणी यशस्वी झाली आहे.<br>` +
+                `Thank you, ${name}! Your registration has been submitted.<br><br>` +
+                `तुमची माहिती तपासल्यानंतर तुम्हाला <strong>${phone}</strong> वर WhatsApp द्वारे लॉगिन तपशील मिळतील.<br>` +
+                `You will receive login credentials on <strong>${phone}</strong> via WhatsApp after admin approval.`
+            );
+            
+            // Reset form
+            this.reset();
+        });
+        
+        // Helper functions
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+        }
+        
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            const successText = document.getElementById('successText');
+            successText.innerHTML = message;
+            successEl.classList.remove('hidden');
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Set default admission date to today
+        document.getElementById('admissionDate').valueAsDate = new Date();
+    </script>
+</body>
+</html>
