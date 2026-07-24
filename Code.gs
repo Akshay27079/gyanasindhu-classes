@@ -15,13 +15,15 @@ const SHEET_SCHEMAS = {
   Attendance: ['id', 'date', 'class', 'lectureHours', 'records', 'savedBy', 'savedAt'],
   TeacherAttendance: ['id', 'date', 'teacherId', 'teacherName', 'status', 'lectureHours', 'className', 'remarks', 'savedBy', 'savedAt'],
   Marks: ['id', 'test', 'subject', 'class', 'total', 'date', 'records', 'savedBy'],
-  Activity: ['action', 'time']
+  Activity: ['action', 'time'],
+  PendingRegistrations: ['id', 'type', 'status', 'submittedAt', 'data', 'approvedAt', 'approvedBy', 'rejectedAt', 'rejectedBy', 'rejectionReason']
 };
 
 const JSON_FIELDS = {
   Teachers: ['assignedClasses'],
   Attendance: ['records'],
-  Marks: ['records']
+  Marks: ['records'],
+  PendingRegistrations: ['data']
 };
 
 const NUMBER_FIELDS = {

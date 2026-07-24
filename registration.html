@@ -581,10 +581,21 @@
                 }
             };
             
-            // Save to pending registrations
+            // Save to localStorage
             const pending = JSON.parse(localStorage.getItem(PENDING_REGISTRATIONS_KEY) || '[]');
             pending.push(registration);
             localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(pending));
+            
+            // Send to Google Sheets
+            (async () => {
+                try {
+                    await fetch('https://script.google.com/macros/s/AKfycbxdzamuKvTIPaDhTA_nVCZsXagcKHZ6emK8pke6dqzxS2gxOcq7HpXXEfiAPugtOw/exec', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'savePendingRegistration', registration })
+                    });
+                } catch (e) { console.log('Sync failed:', e); }
+            })();
             
             // Show success message
             showSuccess(

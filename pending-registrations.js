@@ -4,10 +4,10 @@
 
 const PENDING_REGISTRATIONS_KEY = 'dnyansindhu_pending_registrations';
 
-// Get pending registrations from localStorage
+// Get pending registrations from Google Sheets
 function getPendingRegistrations() {
-    const pending = localStorage.getItem(PENDING_REGISTRATIONS_KEY);
-    return pending ? JSON.parse(pending) : [];
+    const sheetsData = JSON.parse(localStorage.getItem('gs_pendingRegistrations') || '[]');
+    return sheetsData;
 }
 
 // Get count of pending registrations
@@ -16,9 +16,10 @@ function getPendingCount() {
     return pending.filter(r => r.status === 'pending').length;
 }
 
-// Save pending registrations
+// Save pending registrations to Google Sheets
 function savePendingRegistrations(registrations) {
-    localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
+    localStorage.setItem('gs_pendingRegistrations', JSON.stringify(registrations));
+    syncToGoogleSheets('PendingRegistrations', registrations);
 }
 
 // Generate unique student/teacher ID
