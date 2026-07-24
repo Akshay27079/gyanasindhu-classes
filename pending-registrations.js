@@ -187,8 +187,8 @@ async function approveTeacherRegistration(registrationId) {
     return { success: true, teacher, credentials: { username, password } };
 }
 
-// Reject registration
-function rejectRegistration(registrationId, reason) {
+// Reject registration (internal function)
+function doRejectRegistration(registrationId, reason) {
     const pending = getPendingRegistrations();
     const registration = pending.find(r => r.id === registrationId);
     
@@ -582,7 +582,7 @@ function rejectRegistration(registrationId) {
     const reason = prompt('Reason for rejection (optional):');
     if (reason === null) return; // User cancelled
     
-    const result = rejectRegistration(registrationId, reason || 'No reason provided');
+    const result = doRejectRegistration(registrationId, reason || 'No reason provided');
     
     if (result.success) {
         showToast('Registration rejected', 'success');
