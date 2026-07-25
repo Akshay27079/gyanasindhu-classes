@@ -1547,7 +1547,7 @@
         function renderAdminStudents() {
             document.getElementById('pageTitle').textContent = 'Students Management';
             
-            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.approved !== false);
             
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
@@ -2237,7 +2237,7 @@
         function renderAdminTeachers() {
             document.getElementById('pageTitle').textContent = 'Teachers Management';
             
-            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const teachers = JSON.parse(localStorage.getItem('gs_teachers')).filter(t => t.approved !== false);
             
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
