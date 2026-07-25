@@ -1887,12 +1887,14 @@
                     parentPhone: parentPhone || '',
                     whatsappOptOut: formData.get('whatsappOptOut') === 'on',
                     class: formData.get('class'),
+                    medium: formData.get('medium'),
                     stream: formData.get('stream'),
                     address: formData.get('address'),
                     admDate: formData.get('admDate'),
                     feeAmount: feeAmount,
                     feePaid: feePaid,
                     feeStatus: calculateFeeStatus(feeAmount, feePaid),
+                    approved: true,
                     createdAt: new Date().toISOString()
                 };
                 

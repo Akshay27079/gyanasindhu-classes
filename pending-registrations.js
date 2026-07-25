@@ -111,6 +111,7 @@ async function approveStudentRegistration(registrationId) {
         feePaid: 0,
         feeStatus: 'pending',
         whatsappOptOut: false,
+        approved: true,
         registrationSource: 'self',
         approvalDate: new Date().toISOString(),
         createdAt: new Date().toISOString()
