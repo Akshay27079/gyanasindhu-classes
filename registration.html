@@ -506,7 +506,7 @@
 
         async function savePendingRegistrationToGoogleSheets(registration) {
             try {
-                await fetch('https://script.google.com/macros/s/AKfycbzgTGC-HwkXCY525ykf-E8m0LWxfr-bu9C7Xsb_xMeb1zhqKYQPuMIIbHOikZ2OvUg/exec', {
+                const response = await fetch('https://script.google.com/macros/s/AKfycbzgTGC-HwkXCY525ykf-E8m0LWxfr-bu9C7Xsb_xMeb1zhqKYQPuMIIbHOikZ2OvUg/exec', {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
@@ -516,13 +516,18 @@
                         deletedIds: []
                     })
                 });
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'Google Sheets save failed');
+                return true;
             } catch (e) {
                 console.log('Sync failed:', e);
+                alert('Registration saved in this browser, but Google Sheets sync failed: ' + e.message);
+                return false;
             }
         }
         
         // Student form submission
-        document.getElementById('studentForm').addEventListener('submit', function(e) {
+        document.getElementById('studentForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Clear previous errors
@@ -603,7 +608,7 @@
             pending.push(registration);
             localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(pending));
             
-            savePendingRegistrationToGoogleSheets(registration);
+            await savePendingRegistrationToGoogleSheets(registration);
             
             // Show success message
             showSuccess(
@@ -619,7 +624,7 @@
         });
         
         // Teacher form submission
-        document.getElementById('teacherForm').addEventListener('submit', function(e) {
+        document.getElementById('teacherForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Clear previous errors
@@ -688,7 +693,7 @@
             pending.push(registration);
             localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(pending));
 
-            savePendingRegistrationToGoogleSheets(registration);
+            await savePendingRegistrationToGoogleSheets(registration);
             
             // Show success message
             showSuccess(
