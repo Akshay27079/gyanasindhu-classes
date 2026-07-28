@@ -335,6 +335,7 @@ function renderPendingRegistrations() {
 function renderRegistrationCard(registration) {
     const isStudent = registration.type === 'student';
     const data = registration.data;
+    const assignedClasses = Array.isArray(data.assignedClasses) ? data.assignedClasses : [];
     const submittedAgo = getTimeAgo(registration.submittedAt);
     
     return `
@@ -364,7 +365,7 @@ function renderRegistrationCard(registration) {
                     <div><strong>Subject:</strong> ${escapeHtml(data.subject)}</div>
                     <div><strong>Qualification:</strong> ${escapeHtml(data.qualification || 'Not provided')}</div>
                     <div><strong>Experience:</strong> ${escapeHtml(data.experience || 0)} years</div>
-                    <div><strong>Classes:</strong> ${data.assignedClasses.join(', ')}</div>
+                    <div><strong>Classes:</strong> ${assignedClasses.join(', ') || 'Not selected'}</div>
                 `}
             </div>
             
@@ -443,8 +444,9 @@ function viewRegistrationDetails(registrationId) {
     
     const isStudent = registration.type === 'student';
     const data = registration.data;
+    const assignedClasses = Array.isArray(data.assignedClasses) ? data.assignedClasses : [];
     
-    const modal = createModal(
+    showModal(
         'Registration Details',
         `
             <div class="space-y-4">
@@ -536,7 +538,7 @@ function viewRegistrationDetails(registrationId) {
                     
                     <div>
                         <strong class="gold-accent">Assigned Classes:</strong>
-                        <p>${data.assignedClasses.join(', ')}</p>
+                        <p>${assignedClasses.join(', ') || 'Not selected'}</p>
                     </div>
                     
                     ${data.address ? `
@@ -560,8 +562,6 @@ function viewRegistrationDetails(registrationId) {
             </div>
         `
     );
-    
-    modal.classList.add('active');
 }
 
 // Approve registration button handler
