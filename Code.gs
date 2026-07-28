@@ -6,24 +6,24 @@ const SHEET_SCHEMAS = {
   Students: [
     'id', 'username', 'password', 'name', 'fatherName', 'phone', 'whatsapp',
     'parentName', 'parentPhone', 'whatsappOptOut', 'class', 'stream', 'address',
-    'admDate', 'feeAmount', 'feePaid', 'feeStatus', 'createdAt'
+    'admDate', 'feeAmount', 'feePaid', 'feeStatus', 'approved', 'createdAt'
   ],
   Teachers: [
     'id', 'username', 'password', 'name', 'phone', 'subject', 'qualification',
-    'assignedClasses', 'joinDate', 'salary', 'address', 'createdAt'
+    'assignedClasses', 'joinDate', 'salary', 'address', 'approved', 'createdAt'
   ],
   Attendance: ['id', 'date', 'class', 'lectureHours', 'records', 'savedBy', 'savedAt'],
   TeacherAttendance: ['id', 'date', 'teacherId', 'teacherName', 'status', 'lectureHours', 'className', 'remarks', 'savedBy', 'savedAt'],
   Marks: ['id', 'test', 'subject', 'class', 'total', 'date', 'records', 'savedBy'],
   Activity: ['action', 'time'],
-  PendingRegistrations: ['id', 'type', 'status', 'submittedAt', 'data', 'approvedAt', 'approvedBy', 'rejectedAt', 'rejectedBy', 'rejectionReason']
+  PendingRegistrations: ['id', 'type', 'status', 'submittedAt', 'data', 'approvedAt', 'approvedBy', 'rejectedAt', 'rejectedBy', 'rejectionReason', 'credentials']
 };
 
 const JSON_FIELDS = {
   Teachers: ['assignedClasses'],
   Attendance: ['records'],
   Marks: ['records'],
-  PendingRegistrations: ['data']
+  PendingRegistrations: ['data', 'credentials']
 };
 
 const NUMBER_FIELDS = {
@@ -35,7 +35,8 @@ const NUMBER_FIELDS = {
 };
 
 const BOOLEAN_FIELDS = {
-  Students: ['whatsappOptOut']
+  Students: ['whatsappOptOut', 'approved'],
+  Teachers: ['approved']
 };
 
 const API_VERSION = 3;
@@ -88,12 +89,14 @@ function doPost(e) {
           request.records || [],
           request.deletedIds || []
         );
+      } else if (request.action === 'savePendingRegistration') {
+        appendPendingRegistration(request.registration);
       }
 
       return jsonResponse({
         success: true,
         apiVersion: API_VERSION,
-        data: readSheet(request.sheetName),
+        data: readSheet(request.sheetName || 'PendingRegistrations'),
         timestamp: new Date().toISOString()
       });
     } finally {
@@ -111,9 +114,16 @@ function doPost(e) {
 }
 
 function validateAction(request) {
-  const actions = ['read', 'readAll', 'replace', 'mutate'];
+  const actions = ['read', 'readAll', 'replace', 'mutate', 'savePendingRegistration'];
   if (actions.indexOf(request.action) === -1) {
     throw new Error('Invalid action');
+  }
+
+  if (request.action === 'savePendingRegistration') {
+    if (!request.registration || !request.registration.id) {
+      throw new Error('Missing registration');
+    }
+    return;
   }
 
   if (request.action !== 'readAll' && !SHEET_SCHEMAS[request.sheetName]) {
@@ -130,8 +140,16 @@ function readAllSheets() {
     attendance: readSheet('Attendance'),
     teacherAttendance: readSheet('TeacherAttendance'),
     marks: readSheet('Marks'),
-    activity: readSheet('Activity')
+    activity: readSheet('Activity'),
+    pendingRegistrations: readSheet('PendingRegistrations')
   };
+}
+
+function appendPendingRegistration(registration) {
+  var normalized = registration || {};
+  if (!normalized.status) normalized.status = 'pending';
+  if (!normalized.submittedAt) normalized.submittedAt = new Date().toISOString();
+  mutateSheet('PendingRegistrations', [normalized], []);
 }
 
 function ensureDefaultAdmin() {

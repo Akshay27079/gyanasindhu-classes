@@ -7,7 +7,12 @@ const PENDING_REGISTRATIONS_KEY = 'dnyansindhu_pending_registrations';
 // Get pending registrations from Google Sheets
 function getPendingRegistrations() {
     const sheetsData = JSON.parse(localStorage.getItem('gs_pendingRegistrations') || '[]');
-    return sheetsData;
+    const localData = JSON.parse(localStorage.getItem(PENDING_REGISTRATIONS_KEY) || '[]');
+    const byId = new Map();
+    [...localData, ...sheetsData].forEach(registration => {
+        if (registration && registration.id) byId.set(registration.id, registration);
+    });
+    return Array.from(byId.values());
 }
 
 // Get count of pending registrations
@@ -19,6 +24,7 @@ function getPendingCount() {
 // Save pending registrations to Google Sheets
 function savePendingRegistrations(registrations) {
     localStorage.setItem('gs_pendingRegistrations', JSON.stringify(registrations));
+    localStorage.setItem(PENDING_REGISTRATIONS_KEY, JSON.stringify(registrations));
     syncToGoogleSheets('PendingRegistrations', registrations);
 }
 
@@ -164,6 +170,7 @@ async function approveTeacherRegistration(registrationId) {
         experience: registration.data.experience || 0,
         assignedClasses: registration.data.assignedClasses || [],
         address: registration.data.address || '',
+        approved: true,
         registrationSource: 'self',
         approvalDate: new Date().toISOString(),
         createdAt: new Date().toISOString()

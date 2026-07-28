@@ -1243,6 +1243,22 @@
         }
         
         initializeData();
+
+        function getStoredCollection(storageKey) {
+            return JSON.parse(localStorage.getItem(storageKey) || '[]');
+        }
+
+        function isApprovedUser(user) {
+            return user && user.approved !== false;
+        }
+
+        function getApprovedStudents() {
+            return getStoredCollection('gs_students').filter(isApprovedUser);
+        }
+
+        function getApprovedTeachers() {
+            return getStoredCollection('gs_teachers').filter(isApprovedUser);
+        }
         
         // ============================================
         // LOGIN LOGIC
@@ -1301,7 +1317,7 @@
                     loginError.classList.remove('hidden');
                 }
             } else if (selectedRole === 'teacher') {
-                const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+                const teachers = getApprovedTeachers();
                 const teacher = teachers.find(t => t.username === username && t.password === password);
                 if (teacher) {
                     startSession({ role: 'teacher', id: teacher.id, name: teacher.name });
@@ -1311,7 +1327,7 @@
                     loginError.classList.remove('hidden');
                 }
             } else if (selectedRole === 'student') {
-                const students = JSON.parse(localStorage.getItem('gs_students'));
+                const students = getApprovedStudents();
                 const student = students.find(s => s.username === username && s.password === password);
                 if (student) {
                     startSession({ role: 'student', id: student.id, name: student.name });
@@ -1471,8 +1487,8 @@
         function renderAdminDashboard() {
             document.getElementById('pageTitle').textContent = 'Admin Dashboard';
             
-            const students = JSON.parse(localStorage.getItem('gs_students'));
-            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const students = getApprovedStudents();
+            const teachers = getApprovedTeachers();
             const activities = JSON.parse(localStorage.getItem('gs_activity'));
             
             const totalStudents = students.length;
@@ -1547,7 +1563,7 @@
         function renderAdminStudents() {
             document.getElementById('pageTitle').textContent = 'Students Management';
             
-            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.approved !== false);
+            const students = getApprovedStudents();
             
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
@@ -1613,7 +1629,7 @@
         }
         
         function renderStudentsTable(filter = {}) {
-            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const students = getApprovedStudents();
             const tbody = document.getElementById('studentsTableBody');
             
             let filtered = students;
@@ -1916,7 +1932,7 @@
         }
         
         function editStudent(id) {
-            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const students = getApprovedStudents();
             const student = students.find(s => s.id === id);
             
             showModal('Edit Student', `
@@ -2211,7 +2227,7 @@
         }
         
         function exportStudentsCSV() {
-            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const students = getApprovedStudents();
             const headers = ['Name', 'Father Name', 'Phone', 'WhatsApp', 'Parent Name', 'Parent WhatsApp', 'WhatsApp Opt Out', 'Class', 'Stream', 'Username', 'Admission Date', 'Fee Amount', 'Fee Paid', 'Fee Status', 'Address'];
             const rows = students.map(s => [s.name, s.fatherName, s.phone, s.whatsapp, s.parentName || '', s.parentPhone || '', s.whatsappOptOut ? 'Yes' : 'No', s.class, s.stream, s.username, s.admDate, s.feeAmount, s.feePaid, s.feeStatus, s.address]);
             
@@ -2237,7 +2253,7 @@
         function renderAdminTeachers() {
             document.getElementById('pageTitle').textContent = 'Teachers Management';
             
-            const teachers = JSON.parse(localStorage.getItem('gs_teachers')).filter(t => t.approved !== false);
+            const teachers = getApprovedTeachers();
             
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
@@ -2395,6 +2411,7 @@
                     joinDate: formData.get('joinDate'),
                     salary: parseInt(formData.get('salary')) || 0,
                     address: formData.get('address'),
+                    approved: true,
                     createdAt: new Date().toISOString()
                 };
                 
@@ -2569,8 +2586,8 @@
         function renderAdminAccounts() {
             document.getElementById('pageTitle').textContent = 'Account Management';
             
-            const students = JSON.parse(localStorage.getItem('gs_students'));
-            const teachers = JSON.parse(localStorage.getItem('gs_teachers'));
+            const students = getApprovedStudents();
+            const teachers = getApprovedTeachers();
             
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
@@ -5434,7 +5451,8 @@
                 attendance: 'Attendance',
                 teacherAttendance: 'TeacherAttendance',
                 marks: 'Marks',
-                activity: 'Activity'
+                activity: 'Activity',
+                pendingRegistrations: 'PendingRegistrations'
             }
         };
         
@@ -5533,7 +5551,8 @@
                     { name: 'Attendance', data: JSON.parse(localStorage.getItem('gs_attendance') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.attendance },
                     { name: 'TeacherAttendance', data: JSON.parse(localStorage.getItem('gs_teacher_attendance') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.teacherAttendance },
                     { name: 'Marks', data: JSON.parse(localStorage.getItem('gs_marks') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.marks },
-                    { name: 'Activity', data: JSON.parse(localStorage.getItem('gs_activity') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.activity }
+                    { name: 'Activity', data: JSON.parse(localStorage.getItem('gs_activity') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.activity },
+                    { name: 'PendingRegistrations', data: JSON.parse(localStorage.getItem('gs_pendingRegistrations') || '[]'), sheet: GOOGLE_SHEETS_CONFIG.sheetsNames.pendingRegistrations }
                 ];
                 
                 for (const op of syncOperations) {
