@@ -509,7 +509,12 @@
                 await fetch('https://script.google.com/macros/s/AKfycbzgTGC-HwkXCY525ykf-E8m0LWxfr-bu9C7Xsb_xMeb1zhqKYQPuMIIbHOikZ2OvUg/exec', {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action: 'savePendingRegistration', registration })
+                    body: JSON.stringify({
+                        action: 'mutate',
+                        sheetName: 'PendingRegistrations',
+                        records: [registration],
+                        deletedIds: []
+                    })
                 });
             } catch (e) {
                 console.log('Sync failed:', e);
