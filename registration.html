@@ -8,17 +8,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0a0a1a">
     <title>ज्ञानसिंधू क्लासेस - नोंदणी | Registration</title>
-
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; img-src 'self' data: https:; connect-src 'self' https://docs.google.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
-    
-    <!-- Security Meta Tags -->
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="permissions-policy" content="camera=(), microphone=(), geolocation=()">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -394,114 +383,6 @@
             }
         }
     </style>
-
-    <!-- Security Utilities -->
-    <script>
-        // Input validation and sanitization utility
-        const SecurityUtils = {
-            // Sanitize HTML to prevent XSS
-            sanitizeHTML: function(input) {
-                const div = document.createElement('div');
-                div.textContent = input;
-                return div.innerHTML;
-            },
-            
-            // Validate email format
-            isValidEmail: function(email) {
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                return emailRegex.test(email);
-            },
-            
-            // Validate phone number (India format)
-            isValidPhone: function(phone) {
-                const phoneRegex = /^[6-9]\d{9}$/;
-                return phoneRegex.test(phone.replace(/\D/g, ''));
-            },
-            
-            // Validate name (alphanumeric and spaces only)
-            isValidName: function(name) {
-                const nameRegex = /^[a-zA-Z\s\u0900-\u097F]{2,50}$/;
-                return nameRegex.test(name.trim());
-            },
-            
-            // Sanitize form input
-            sanitizeInput: function(input) {
-                return input.trim().replace(/[<>"']/g, function(char) {
-                    const entityMap = {'<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
-                    return entityMap[char];
-                });
-            },
-            
-            // Generate CSRF token
-            generateCSRFToken: function() {
-                const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('');
-                sessionStorage.setItem('csrf_token', token);
-                return token;
-            },
-            
-            // Get CSRF token
-            getCSRFToken: function() {
-                let token = sessionStorage.getItem('csrf_token');
-                if (!token) {
-                    token = this.generateCSRFToken();
-                }
-                return token;
-            },
-            
-            // Validate CSRF token
-            validateCSRFToken: function(token) {
-                return token === sessionStorage.getItem('csrf_token');
-            },
-            
-            // Encrypt sensitive data (basic obfuscation, NOT cryptographically secure)
-            encryptData: function(data) {
-                return btoa(JSON.stringify(data) + Math.random().toString(36).substring(7));
-            },
-            
-            // Decrypt sensitive data (basic)
-            decryptData: function(encrypted) {
-                try {
-                    const decoded = atob(encrypted);
-                    const lastIndex = decoded.lastIndexOf(']');
-                    return JSON.parse(decoded.substring(0, lastIndex + 1));
-                } catch(e) {
-                    return null;
-                }
-            }
-        };
-
-        // Encrypted storage wrapper for sensitive data
-        const SecureStorage = {
-            setItem: function(key, value) {
-                const encrypted = SecurityUtils.encryptData(value);
-                localStorage.setItem(key, encrypted);
-            },
-            
-            getItem: function(key) {
-                const encrypted = localStorage.getItem(key);
-                if (!encrypted) return null;
-                return SecurityUtils.decryptData(encrypted);
-            },
-            
-            removeItem: function(key) {
-                localStorage.removeItem(key);
-            }
-        };
-
-        // Initialize CSRF token on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            SecurityUtils.getCSRFToken();
-        });
-
-        // Disable browser dev tools detection (security through obscurity only)
-        Object.defineProperty(window, 'devtools', {
-            get() {
-                return {open: false, close: false, setExtensionAPI: function() {}};
-            }
-        });
-    </script>
 </head>
 <body>
     <div class="glass-card">
@@ -797,37 +678,6 @@
             document.getElementById('successMessage').classList.add('hidden');
         }
         
-        // Form submission security validation
-        document.addEventListener('submit', function(e) {
-            const form = e.target;
-            
-            // Validate all email inputs
-            const emailInputs = form.querySelectorAll('input[type="email"]');
-            emailInputs.forEach(input => {
-                if (input.value && !SecurityUtils.isValidEmail(input.value)) {
-                    e.preventDefault();
-                    input.style.borderColor = '#ff4444';
-                    input.setAttribute('aria-invalid', 'true');
-                    alert('Invalid email format');
-                    return false;
-                }
-            });
-            
-            // Validate all phone inputs
-            const phoneInputs = form.querySelectorAll('input[type="tel"], [data-type="phone"]');
-            phoneInputs.forEach(input => {
-                if (input.value && !SecurityUtils.isValidPhone(input.value)) {
-                    e.preventDefault();
-                    input.style.borderColor = '#ff4444';
-                    input.setAttribute('aria-invalid', 'true');
-                    alert('Invalid phone number format');
-                    return false;
-                }
-            });
-            
-            return true;
-        }, true);
-        
         // Toggle stream field for class 11 and 12
         function toggleStream() {
             const classValue = document.getElementById('studentClass').value;
@@ -915,11 +765,6 @@
             
             // Clear previous errors
             document.querySelectorAll('.error-message').forEach(el => el.classList.add('hidden'));
-            
-            // Sanitize all text inputs
-            this.querySelectorAll('input[type="text"], input[type="tel"], textarea').forEach(input => {
-                input.value = SecurityUtils.sanitizeInput(input.value);
-            });
             
             // Get form values
             const name = document.getElementById('studentName').value.trim();
@@ -1017,11 +862,6 @@
             
             // Clear previous errors
             document.querySelectorAll('.error-message').forEach(el => el.classList.add('hidden'));
-            
-            // Sanitize all text inputs
-            this.querySelectorAll('input[type="text"], input[type="tel"], textarea').forEach(input => {
-                input.value = SecurityUtils.sanitizeInput(input.value);
-            });
             
             // Get form values
             const name = document.getElementById('teacherName').value.trim();
