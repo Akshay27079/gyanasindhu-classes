@@ -277,11 +277,11 @@ function renderPendingRegistrations() {
     const contentArea = document.getElementById('contentArea');
     contentArea.innerHTML = `
         <div class="glass-card p-6 mb-6">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                 <h3 class="text-xl font-bold gold-accent">
                     <i class="fas fa-user-clock mr-2"></i>Pending Registrations (${pending.length})
                 </h3>
-                <a href="registration.html" target="_blank" class="btn-gold">
+                <a href="registration.html" target="_blank" class="btn-gold w-full sm:w-auto">
                     <i class="fas fa-external-link-alt mr-2"></i>Open Registration Page
                 </a>
             </div>
@@ -340,7 +340,7 @@ function renderRegistrationCard(registration) {
     
     return `
         <div class="glass-card p-4 border-l-4 border-yellow-500">
-            <div class="flex justify-between items-start mb-3">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
                 <div>
                     <h5 class="text-lg font-bold">${escapeHtml(data.name)}</h5>
                     <p class="text-sm text-gray-400">
@@ -369,14 +369,14 @@ function renderRegistrationCard(registration) {
                 `}
             </div>
             
-            <div class="flex gap-2">
-                <button onclick="viewRegistrationDetails('${registration.id}')" class="btn-gold flex-1">
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button onclick="viewRegistrationDetails('${registration.id}')" class="btn-gold flex-1 w-full">
                     <i class="fas fa-eye mr-2"></i>View Details
                 </button>
-                <button onclick="approveRegistration('${registration.id}')" class="btn-gold flex-1" style="background: #10b981;">
+                <button onclick="approveRegistration('${registration.id}')" class="btn-gold flex-1 w-full" style="background: #10b981;">
                     <i class="fas fa-check mr-2"></i>Approve
                 </button>
-                <button onclick="rejectRegistration('${registration.id}')" class="btn-gold flex-1" style="background: #ef4444;">
+                <button onclick="rejectRegistration('${registration.id}')" class="btn-gold flex-1 w-full" style="background: #ef4444;">
                     <i class="fas fa-times mr-2"></i>Reject
                 </button>
             </div>
@@ -396,32 +396,34 @@ function renderRegistrationHistory() {
     }
     
     return `
-        <table class="w-full text-sm">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th>By</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${history.map(reg => `
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
                     <tr>
-                        <td>${escapeHtml(reg.data.name)}</td>
-                        <td>${reg.type === 'student' ? 'Student' : 'Teacher'}</td>
-                        <td>
-                            ${reg.status === 'approved'
-                                ? '<span class="badge badge-paid">Approved</span>'
-                                : '<span class="badge-pending">Rejected</span>'}
-                        </td>
-                        <td>${new Date(reg.approvedAt || reg.rejectedAt).toLocaleDateString('en-IN')}</td>
-                        <td>${escapeHtml(reg.approvedBy || reg.rejectedBy)}</td>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>By</th>
                     </tr>
-                `).join('')}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    ${history.map(reg => `
+                        <tr>
+                            <td>${escapeHtml(reg.data.name)}</td>
+                            <td>${reg.type === 'student' ? 'Student' : 'Teacher'}</td>
+                            <td>
+                                ${reg.status === 'approved'
+                                    ? '<span class="badge badge-paid">Approved</span>'
+                                    : '<span class="badge-pending">Rejected</span>'}
+                            </td>
+                            <td>${new Date(reg.approvedAt || reg.rejectedAt).toLocaleDateString('en-IN')}</td>
+                            <td>${escapeHtml(reg.approvedBy || reg.rejectedBy)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
     `;
 }
 
@@ -450,7 +452,7 @@ function viewRegistrationDetails(registrationId) {
         'Registration Details',
         `
             <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                         <strong>Type:</strong><br>
                         ${registration.type === 'student' ? 'Student' : 'Teacher'}
@@ -474,7 +476,7 @@ function viewRegistrationDetails(registrationId) {
                         <p>${escapeHtml(data.fatherName)}</p>
                     </div>
                     
-                    <div class="grid grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <strong class="gold-accent">Class:</strong>
                             <p>${escapeHtml(data.class)}</p>
@@ -489,7 +491,7 @@ function viewRegistrationDetails(registrationId) {
                         </div>
                     </div>
                     
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <strong class="gold-accent">Student Phone:</strong>
                             <p>${escapeHtml(data.phone)}</p>
@@ -525,7 +527,7 @@ function viewRegistrationDetails(registrationId) {
                         <p>${escapeHtml(data.subject)}</p>
                     </div>
                     
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <strong class="gold-accent">Qualification:</strong>
                             <p>${escapeHtml(data.qualification || 'Not provided')}</p>
@@ -551,11 +553,11 @@ function viewRegistrationDetails(registrationId) {
                 
                 <hr style="border-color: rgba(255,255,255,0.1);">
                 
-                <div class="flex gap-2">
-                    <button onclick="closeModal(); approveRegistration('${registration.id}')" class="btn-gold flex-1" style="background: #10b981;">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <button onclick="closeModal(); approveRegistration('${registration.id}')" class="btn-gold flex-1 w-full" style="background: #10b981;">
                         <i class="fas fa-check mr-2"></i>Approve
                     </button>
-                    <button onclick="closeModal(); rejectRegistration('${registration.id}')" class="btn-gold flex-1" style="background: #ef4444;">
+                    <button onclick="closeModal(); rejectRegistration('${registration.id}')" class="btn-gold flex-1 w-full" style="background: #ef4444;">
                         <i class="fas fa-times mr-2"></i>Reject
                     </button>
                 </div>
