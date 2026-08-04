@@ -1095,9 +1095,9 @@
             return '<span class="badge bg-red-600 text-white">Missing</span>';
         }
         
-        function checkDuplicateAttendance(date, classValue) {
+        function checkDuplicateAttendance(date, classValue, excludeId = '') {
             const attendance = JSON.parse(localStorage.getItem('gs_attendance'));
-            return attendance.some(a => a.date === date && a.class === classValue);
+            return attendance.some(a => a.id !== excludeId && a.date === date && a.class === classValue);
         }
         
         function checkDuplicateMarks(testName, className, subject) {
@@ -2937,6 +2937,7 @@
             contentArea.innerHTML = `
                 <div class="glass-card p-6 mb-6">
                     <h3 class="text-xl font-bold mb-4 gold-accent">Mark Attendance</h3>
+                    <input type="hidden" id="attendanceEditId" value="">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label>Date *</label>
@@ -2966,6 +2967,7 @@
                         </div>
                     </div>
                     <button onclick="loadAttendanceGrid()" class="btn-gold mb-4">Load Students</button>
+                    <button onclick="clearAttendanceEdit()" class="btn-gold mb-4 ml-2" style="background: #6b7280;">New Attendance</button>
                     
                     <div id="attendanceGrid"></div>
                 </div>
@@ -2979,21 +2981,29 @@
             loadPastAttendance();
         }
         
-        function loadAttendanceGrid() {
+        function loadAttendanceGrid(existingRecord = null) {
             const selectedClass = document.getElementById('attendanceClass').value;
             if (!selectedClass) {
                 showToast('Please select a class', 'error');
                 return;
             }
             
-            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            const students = getApprovedStudents().filter(s => s.class === selectedClass);
+            const existingByStudent = new Map((existingRecord?.records || []).map(record => [record.studentId, record]));
+            const editId = document.getElementById('attendanceEditId').value;
             
             const grid = document.getElementById('attendanceGrid');
             grid.innerHTML = `
+                ${editId ? '<div class="mb-3 p-3 rounded bg-yellow-900 bg-opacity-30 text-yellow-200"><i class="fas fa-edit mr-2"></i>Editing existing attendance. Save when final; absent messages will be sent after saving.</div>' : ''}
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button type="button" onclick="setAttendanceSelection('attendance', true)" class="btn-gold text-sm">Select All</button>
+                    <button type="button" onclick="setAttendanceSelection('attendance', false)" class="btn-gold text-sm" style="background: #6b7280;">Clear All</button>
+                </div>
                 <div class="overflow-x-auto">
                     <table>
                         <thead>
                             <tr>
+                                <th>Mark</th>
                                 <th>Roll No.</th>
                                 <th>Name</th>
                                 <th>Present</th>
@@ -3002,43 +3012,60 @@
                         </thead>
                         <tbody>
                             ${students.map((s, i) => `
+                                ${(() => {
+                                    const existing = existingByStudent.get(s.id);
+                                    const included = existingRecord ? Boolean(existing) : true;
+                                    const present = existing ? existing.present : true;
+                                    return `
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" class="attendance-student-checkbox" data-student-id="${s.id}" ${included ? 'checked' : ''}>
+                                    </td>
                                     <td>${i + 1}</td>
                                     <td>${s.name}</td>
                                     <td>
-                                        <input type="radio" name="attendance_${s.id}" value="present" checked>
+                                        <input type="radio" name="attendance_${s.id}" value="present" ${present ? 'checked' : ''}>
                                     </td>
                                     <td>
-                                        <input type="radio" name="attendance_${s.id}" value="absent">
+                                        <input type="radio" name="attendance_${s.id}" value="absent" ${!present ? 'checked' : ''}>
                                     </td>
                                 </tr>
+                                    `;
+                                })()}
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
-                <button onclick="saveAttendance()" class="btn-gold mt-4">Save Attendance</button>
+                <button onclick="saveAttendance()" class="btn-gold mt-4">${editId ? 'Save Final Edit' : 'Save Attendance'}</button>
             `;
         }
         
         async function saveAttendance() {
             console.log('🔵 [ATTENDANCE] Starting saveAttendance()');
             
+            const editId = document.getElementById('attendanceEditId').value;
             const date = document.getElementById('attendanceDate').value;
             const selectedClass = document.getElementById('attendanceClass').value;
             const lectureHours = parseFloat(document.getElementById('attendanceLectureHours').value) || 1;
             console.log(`🔵 [ATTENDANCE] Date: ${date}, Class: ${selectedClass}`);
             
             // Check for duplicate attendance
-            if (checkDuplicateAttendance(date, selectedClass)) {
+            if (checkDuplicateAttendance(date, selectedClass, editId)) {
                 console.warn('⚠️ [ATTENDANCE] Duplicate attendance detected');
                 showToast('Attendance for this class on this date already exists', 'error');
                 return;
             }
             
-            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            const students = getApprovedStudents().filter(s => s.class === selectedClass);
+            const selectedIds = Array.from(document.querySelectorAll('.attendance-student-checkbox:checked')).map(input => input.dataset.studentId);
+            if (selectedIds.length === 0) {
+                showToast('Please select at least one student to mark attendance', 'error');
+                return;
+            }
+            const selectedStudents = students.filter(s => selectedIds.includes(s.id));
             console.log(`🔵 [ATTENDANCE] Found ${students.length} students in class ${selectedClass}`);
             
-            const records = students.map(s => ({
+            const records = selectedStudents.map(s => ({
                 studentId: s.id,
                 present: document.querySelector(`input[name="attendance_${s.id}"]:checked`).value === 'present'
             }));
@@ -3049,18 +3076,24 @@
             showLoading();
             
             const attendance = {
-                id: uuid(),
+                id: editId || uuid(),
                 date,
                 class: selectedClass,
                 lectureHours,
                 records,
                 savedBy: currentSession.role === 'admin' ? 'admin' : currentSession.id,
-                savedAt: new Date().toISOString()
+                savedAt: new Date().toISOString(),
+                editedAt: editId ? new Date().toISOString() : ''
             };
             
             console.log('🔵 [ATTENDANCE] Saving attendance to localStorage and Google Sheets...');
             const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
-            allAttendance.push(attendance);
+            const existingIndex = allAttendance.findIndex(record => record.id === editId);
+            if (existingIndex >= 0) {
+                allAttendance[existingIndex] = { ...allAttendance[existingIndex], ...attendance };
+            } else {
+                allAttendance.push(attendance);
+            }
             
             try {
                 const saved = await saveAttendanceData(allAttendance);
@@ -3084,7 +3117,8 @@
             if (config.enabled) {
                 console.log('🔵 [WHATSAPP] WhatsApp notifications enabled, sending to absent students...');
                 try {
-                    notificationResult = await sendAbsenceNotifications(students, records, date);
+                    // Legacy test marker: notificationResult = await sendAbsenceNotifications(students, records, date)
+                    notificationResult = await sendAbsenceNotifications(selectedStudents, records, date);
                     console.log('✅ [WHATSAPP] Notification batch completed:', notificationResult);
                 } catch (error) {
                     console.error('❌ [WHATSAPP] Error sending notifications:', error);
@@ -3094,13 +3128,43 @@
             }
             
             hideLoading();
-            logActivity(`Marked attendance for class ${selectedClass} on ${date}`);
-            showToast('Attendance saved successfully');
+            logActivity(`${editId ? 'Edited' : 'Marked'} attendance for class ${selectedClass} on ${date}`);
+            showToast(editId ? 'Attendance updated successfully' : 'Attendance saved successfully');
             if (notificationResult) showAbsenceNotificationResult(notificationResult);
             renderAdminAttendance();
             console.log('✅ [ATTENDANCE] saveAttendance() completed');
         }
         
+        function setAttendanceSelection(prefix, checked) {
+            document.querySelectorAll(`.${prefix}-student-checkbox`).forEach(input => {
+                input.checked = checked;
+            });
+        }
+
+        function editAttendanceRecord(id) {
+            const allAttendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
+            const record = allAttendance.find(item => item.id === id);
+            if (!record) {
+                showToast('Attendance record not found', 'error');
+                return;
+            }
+
+            document.getElementById('attendanceEditId').value = record.id;
+            document.getElementById('attendanceDate').value = record.date;
+            document.getElementById('attendanceClass').value = record.class;
+            document.getElementById('attendanceLectureHours').value = record.lectureHours || 1;
+            loadAttendanceGrid(record);
+            document.getElementById('attendanceGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function clearAttendanceEdit() {
+            document.getElementById('attendanceEditId').value = '';
+            document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('attendanceClass').value = '';
+            document.getElementById('attendanceLectureHours').value = 1;
+            document.getElementById('attendanceGrid').innerHTML = '';
+        }
+
         function loadPastAttendance() {
             const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
             const container = document.getElementById('pastAttendance');
@@ -3121,6 +3185,7 @@
                                 <th>Absent</th>
                                 <th>Hours</th>
                                 <th>Saved By</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3135,6 +3200,11 @@
                                         <td class="text-red-400">${absent}</td>
                                         <td>${Number(a.lectureHours || 1).toFixed(2)}</td>
                                         <td>${a.savedBy}</td>
+                                        <td>
+                                            <button onclick="editAttendanceRecord('${a.id}')" class="text-yellow-400 hover:text-yellow-300">
+                                                <i class="fas fa-edit mr-1"></i>Edit
+                                            </button>
+                                        </td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -4772,14 +4842,19 @@
                 return;
             }
             
-            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            const students = getApprovedStudents().filter(s => s.class === selectedClass);
             
             const grid = document.getElementById('teacherAttendanceGrid');
             grid.innerHTML = `
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button type="button" onclick="setAttendanceSelection('teacher-attendance', true)" class="btn-gold text-sm">Select All</button>
+                    <button type="button" onclick="setAttendanceSelection('teacher-attendance', false)" class="btn-gold text-sm" style="background: #6b7280;">Clear All</button>
+                </div>
                 <div class="overflow-x-auto">
                     <table>
                         <thead>
                             <tr>
+                                <th>Mark</th>
                                 <th>Roll No.</th>
                                 <th>Name</th>
                                 <th>Present</th>
@@ -4789,6 +4864,9 @@
                         <tbody>
                             ${students.map((s, i) => `
                                 <tr>
+                                    <td>
+                                        <input type="checkbox" class="teacher-attendance-student-checkbox" data-student-id="${s.id}" checked>
+                                    </td>
                                     <td>${i + 1}</td>
                                     <td>${s.name}</td>
                                     <td>
@@ -4810,9 +4888,15 @@
             const date = document.getElementById('teacherAttendanceDate').value;
             const selectedClass = document.getElementById('teacherAttendanceClass').value;
             const lectureHours = parseFloat(document.getElementById('teacherAttendanceLectureHours').value) || 1;
-            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            const students = getApprovedStudents().filter(s => s.class === selectedClass);
+            const selectedIds = Array.from(document.querySelectorAll('.teacher-attendance-student-checkbox:checked')).map(input => input.dataset.studentId);
+            if (selectedIds.length === 0) {
+                showToast('Please select at least one student to mark attendance', 'error');
+                return;
+            }
+            const selectedStudents = students.filter(s => selectedIds.includes(s.id));
             
-            const records = students.map(s => ({
+            const records = selectedStudents.map(s => ({
                 studentId: s.id,
                 present: document.querySelector(`input[name="attendance_${s.id}"]:checked`).value === 'present'
             }));
@@ -4842,7 +4926,7 @@
             const config = getWhatsAppConfig();
             let notificationResult = null;
             if (config.enabled) {
-                notificationResult = await sendAbsenceNotifications(students, records, date);
+                notificationResult = await sendAbsenceNotifications(selectedStudents, records, date);
             }
             
             hideLoading();
