@@ -2,7 +2,11 @@
 <html lang="mr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#04152d">
     <title>ज्ञानसिंधू क्लासेस - ज्ञानातून यशाकडे | नेरळ कोचिंग क्लासेस</title>
 
     <!-- SEO Meta Tags -->
@@ -54,11 +58,25 @@
             --muted: #8baac8;
             --card-bg: rgba(14, 40, 80, 0.6);
             --glass: rgba(255,255,255,0.04);
+            
+            /* Responsive breakpoints */
+            --breakpoint-mobile: 767px;
+            --breakpoint-tablet-min: 768px;
+            --breakpoint-tablet-max: 1023px;
+            --breakpoint-desktop: 1024px;
+            
+            /* Touch target specifications */
+            --min-touch-target: 44px;
+            --min-spacing: 8px;
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        html { scroll-behavior: smooth; }
+        html {
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
 
         body {
             font-family: 'Rajdhani', sans-serif;
@@ -66,6 +84,53 @@
             color: var(--white);
             overflow-x: hidden;
             cursor: default;
+        }
+
+        button,
+        a,
+        .hamburger,
+        .nav-cta {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        @supports not (display: grid) {
+            .courses-grid,
+            .features-grid,
+            .footer-grid {
+                display: flex !important;
+                flex-wrap: wrap;
+            }
+
+            .courses-grid > *,
+            .features-grid > *,
+            .footer-grid > * {
+                flex: 1 1 260px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            .mobile-menu {
+                top: 58px;
+                max-height: calc(100vh - 58px);
+                overflow-y: auto;
+            }
         }
 
         /* ── CANVAS BACKGROUND ── */
@@ -128,6 +193,15 @@
             letter-spacing: 0.05em;
             transition: color 0.3s;
             position: relative;
+            /* Touch interface enhancements */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            min-width: 44px;
+            padding: 12px 16px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         .nav-links a::after {
             content: '';
@@ -164,11 +238,20 @@
             color: var(--gold);
             font-size: 1.5rem;
             cursor: pointer;
+            min-width: var(--min-touch-target);
+            min-height: var(--min-touch-target);
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
+        
         .mobile-menu {
             display: none;
             position: fixed;
-            top: 72px; left: 0; right: 0;
+            top: 72px; 
+            left: 0; 
+            right: 0;
             background: rgba(4,21,45,0.97);
             backdrop-filter: blur(20px);
             padding: 24px 5%;
@@ -176,21 +259,45 @@
             border-bottom: 1px solid rgba(245,166,35,0.15);
             flex-direction: column;
             gap: 20px;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        .mobile-menu.open { display: flex; }
+        
+        .mobile-menu.open { 
+            display: flex; 
+            transform: translateX(0);
+        }
+        
         .mobile-menu a {
             color: var(--muted);
             text-decoration: none;
             font-size: 1.1rem;
             font-weight: 500;
-            padding: 8px 0;
-            border-radius: 4px;
+            padding: 12px 16px;
+            border-radius: 8px;
             transition: all 0.3s;
+            text-align: center;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
         }
+        
+        .mobile-menu a::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+        
         .mobile-menu a:hover { 
             color: var(--gold); 
             background: rgba(245,166,35,0.1);
-            padding-left: 12px;
         }
 
         /* Fix mobile navigation responsive issues */
@@ -314,11 +421,32 @@
             transition: all 0.3s ease;
             letter-spacing: 0.03em;
             text-decoration: none;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            /* Touch interface enhancements (Task 6) */
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
         }
+        
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50px;
+            pointer-events: none;
+        }
+        
         .btn-primary:hover {
             transform: translateY(-3px) scale(1.03);
             box-shadow: 0 12px 40px rgba(245,166,35,0.55);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(-1px) scale(0.98);
         }
         .btn-secondary {
             background: transparent;
@@ -334,11 +462,30 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            /* Touch interface enhancements */
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
         }
+        
+        .btn-secondary::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50px;
+            pointer-events: none;
+        }
+        
         .btn-secondary:hover {
             border-color: var(--gold);
             color: var(--gold);
             transform: translateY(-3px);
+        }
+        
+        .btn-secondary:active {
+            transform: translateY(-1px);
         }
         .btn-whatsapp {
             background: linear-gradient(135deg, #25d366, #128c7e);
@@ -355,10 +502,29 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            /* Touch interface enhancements */
+            min-height: 44px;
+            min-width: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
         }
+        
+        .btn-whatsapp::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50px;
+            pointer-events: none;
+        }
+        
         .btn-whatsapp:hover {
             transform: translateY(-3px);
             box-shadow: 0 12px 40px rgba(37,211,102,0.5);
+        }
+        
+        .btn-whatsapp:active {
+            transform: translateY(-1px);
         }
 
         /* Floating 3D cards row */
@@ -375,12 +541,18 @@
             background: var(--card-bg);
             border: 1px solid rgba(245,166,35,0.15);
             border-radius: 16px;
-            padding: 20px 32px;
+            /* Responsive padding: 16px mobile, 24px desktop */
+            padding: clamp(16px, 4vw, 32px);
             backdrop-filter: blur(20px);
             transform-style: preserve-3d;
             transition: transform 0.4s ease, box-shadow 0.4s ease;
             position: relative;
             overflow: hidden;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         .stat-card::before {
             content: '';
@@ -397,13 +569,13 @@
         }
         .stat-number {
             font-family: 'Cinzel', serif;
-            font-size: 2.2rem;
+            font-size: clamp(1.8rem, 5vw, 2.2rem);
             font-weight: 900;
             color: var(--gold);
             display: block;
         }
         .stat-label {
-            font-size: 0.9rem;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
             color: var(--muted);
             font-weight: 400;
             letter-spacing: 0.04em;
@@ -453,23 +625,44 @@
 
         .courses-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
+            /* Mobile-first: 1 column on mobile */
+            grid-template-columns: 1fr;
+            gap: 16px;
             max-width: 1100px;
             margin: 0 auto;
+        }
+        
+        /* Tablet: 2 columns */
+        @media (min-width: 768px) {
+            .courses-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+        
+        /* Desktop: auto-fit with minimum width */
+        @media (min-width: 1024px) {
+            .courses-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 24px;
+            }
         }
 
         .course-card {
             background: var(--card-bg);
             border: 1px solid rgba(255,255,255,0.06);
             border-radius: 20px;
-            padding: 36px 28px;
+            /* Responsive padding: 20px mobile, 36px desktop */
+            padding: clamp(20px, 5vw, 36px) clamp(16px, 4vw, 28px);
             position: relative;
             overflow: hidden;
             cursor: pointer;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             transform-style: preserve-3d;
             backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
         .course-card:hover {
             transform: translateY(-12px) rotateY(-3deg);
@@ -555,7 +748,7 @@
             background: transparent;
             border: 1px solid rgba(245,166,35,0.3);
             color: var(--gold);
-            padding: 10px;
+            padding: 12px 16px;
             border-radius: 10px;
             font-family: 'Rajdhani', sans-serif;
             font-weight: 600;
@@ -563,31 +756,72 @@
             cursor: pointer;
             transition: all 0.3s;
             letter-spacing: 0.05em;
+            /* Touch interface enhancements */
+            min-height: 44px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
+        
+        .card-btn::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        
         .card-btn:hover {
             background: var(--gold);
             color: var(--navy);
             box-shadow: 0 4px 20px rgba(245,166,35,0.3);
         }
+        
+        .card-btn:active {
+            transform: scale(0.98);
+        }
 
         /* ── FEATURES SECTION ── */
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
+            /* Mobile-first: 1 column on mobile */
+            grid-template-columns: 1fr;
+            gap: 16px;
             max-width: 1100px;
             margin: 0 auto;
+        }
+        
+        /* Tablet: 2 columns */
+        @media (min-width: 768px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+        
+        /* Desktop: auto-fit */
+        @media (min-width: 1024px) {
+            .features-grid {
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 20px;
+            }
         }
         .feature-item {
             background: var(--glass);
             border: 1px solid rgba(255,255,255,0.05);
             border-radius: 16px;
-            padding: 28px 24px;
+            padding: clamp(20px, 4vw, 28px) clamp(16px, 4vw, 24px);
             display: flex;
-            gap: 18px;
+            gap: 16px;
             align-items: flex-start;
             transition: all 0.35s ease;
             backdrop-filter: blur(8px);
+            /* Touch interface enhancement */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         .feature-item:hover {
             background: rgba(14,61,110,0.4);
@@ -667,9 +901,26 @@
         }
         .privacy-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 18px;
+            /* Mobile-first: 1 column */
+            grid-template-columns: 1fr;
+            gap: 16px;
             margin-top: 24px;
+        }
+        
+        /* Tablet: 2 columns */
+        @media (min-width: 768px) {
+            .privacy-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 18px;
+            }
+        }
+        
+        /* Desktop: auto-fit */
+        @media (min-width: 1024px) {
+            .privacy-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 18px;
+            }
         }
         .privacy-item {
             background: rgba(255,255,255,0.04);
@@ -700,10 +951,27 @@
         }
         .footer-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 40px;
+            /* Mobile-first: 1 column */
+            grid-template-columns: 1fr;
+            gap: 32px;
             max-width: 1100px;
             margin: 0 auto 40px;
+        }
+        
+        /* Tablet: 2 columns */
+        @media (min-width: 768px) {
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 40px;
+            }
+        }
+        
+        /* Desktop: auto-fit with 3-4 columns */
+        @media (min-width: 1024px) {
+            .footer-grid {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 40px;
+            }
         }
         .footer-brand h4 {
             font-family: 'Cinzel', serif;
@@ -723,7 +991,7 @@
             gap: 12px;
         }
         .footer-social a {
-            width: 38px; height: 38px;
+            width: 44px; height: 44px;
             border-radius: 10px;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.08);
@@ -734,7 +1002,21 @@
             font-size: 0.9rem;
             text-decoration: none;
             transition: all 0.3s;
+            /* Touch interface enhancements */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            flex-shrink: 0;
         }
+        
+        .footer-social a::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        
         .footer-social a:hover {
             background: var(--gold);
             color: var(--navy);
@@ -883,31 +1165,172 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* ── RESPONSIVE DESIGN ── */
+        /* ── RESPONSIVE DESIGN ── MOBILE-FIRST APPROACH ── */
+        
+        /* Base styles for mobile first */
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+            animation: fadeInUp 1.2s ease 0.5s both;
+        }
+        
+        section {
+            position: relative;
+            z-index: 1;
+            padding: clamp(60px, 12vw, 90px) 5%;
+        }
+        
+        .nav-links {
+            gap: 24px;
+        }
+        
+        /* Tablets and above */
+        @media (min-width: 768px) {
+            .hero-stats {
+                gap: 24px;
+                margin-top: 60px;
+            }
+            
+            .hero-title {
+                font-size: clamp(2.4rem, 5vw, 4rem);
+            }
+            
+            .nav-links {
+                gap: 28px;
+            }
+        }
         
         /* Large tablets */
-        @media (max-width: 1024px) {
+        @media (min-width: 1024px) {
             .nav-links {
-                gap: 24px;
+                gap: 32px;
             }
+            
             .hero-title {
-                font-size: clamp(2rem, 5vw, 4.5rem);
+                font-size: clamp(2.8rem, 6vw, 5.5rem);
             }
-            .courses-grid {
-                grid-template-columns: repeat(2, 1fr);
+            
+            .hero-stats {
+                gap: 28px;
             }
-            .features-grid {
-                grid-template-columns: repeat(2, 1fr);
+        }
+        
+        /* Mobile navigation adjustments */
+        @media (max-width: 1023px) {
+            .nav-links, .nav-cta { display: none; }
+            .hamburger { display: block; }
+        }
+        
+        /* Tablet: 768px - 1023px */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .mobile-menu {
+                top: 70px;
+                padding: 20px 4%;
             }
-            section {
-                padding: 80px 5%;
+            
+            .mobile-menu a {
+                font-size: 1rem;
+                padding: 12px 14px;
             }
         }
         
         /* Tablets */
         @media (max-width: 768px) {
-            .nav-links, .nav-cta { display: none; }
-            .hamburger { display: block; }
+            .mobile-menu {
+                top: 68px;
+                padding: 20px 4%;
+            }
+            
+            .mobile-menu a {
+                font-size: 1.05rem;
+                padding: 12px 16px;
+                border-radius: 8px;
+                text-align: center;
+            }
+            
+            .hero-title {
+                font-size: clamp(2rem, 5vw, 4.5rem);
+            }
+        }
+        
+        /* Mobile: max 767px */
+        @media (max-width: 767px) {
+            .mobile-menu {
+                top: 64px;
+                padding: 16px 3%;
+            }
+            
+            .mobile-menu a {
+                font-size: 1rem;
+                padding: 14px 16px;
+                margin-bottom: 4px;
+            }
+            
+            .hamburger {
+                font-size: 1.4rem;
+            }
+            
+            .hero-title {
+                font-size: clamp(1.8rem, 4vw, 3rem);
+            }
+            
+            .hero-stats {
+                flex-direction: row;
+                gap: 12px;
+                margin-top: 30px;
+            }
+            
+            .stat-card {
+                min-width: 120px;
+                flex: 0 1 auto;
+            }
+            
+            section {
+                padding: 50px 5%;
+            }
+            
+            .cta-section {
+                padding: 50px 5%;
+            }
+        }
+        
+        /* Small mobile: max 480px */
+        @media (max-width: 480px) {
+            .mobile-menu {
+                top: 60px;
+                padding: 12px 3%;
+            }
+            
+            .mobile-menu a {
+                font-size: 0.95rem;
+                padding: 12px 14px;
+            }
+            
+            .hamburger {
+                font-size: 1.2rem;
+            }
+            
+            .hero-stats {
+                gap: 8px;
+                margin-top: 20px;
+            }
+            
+            .stat-card {
+                padding: clamp(12px, 3vw, 16px);
+                min-width: 100px;
+            }
+            
+            .stat-number {
+                font-size: 1.6rem;
+            }
+            
+            section {
+                padding: 40px 4%;
+            }
+        }
             
             section { 
                 padding: 60px 5%; 
@@ -1331,7 +1754,7 @@
 <!-- Navigation -->
 <nav id="navbar">
     <a href="#" class="nav-brand">
-        <img src="Logo.jpg" alt="Logo" class="nav-logo" onerror="this.style.display='none'">
+        <img src="Logo.jpg" alt="Logo" class="nav-logo" width="44" height="44" loading="eager" decoding="async" onerror="this.style.display='none'">
         <span class="nav-title">ज्ञानसिंधू <span>क्लासेस</span></span>
     </a>
     <ul class="nav-links">
@@ -1633,6 +2056,31 @@
 </div>
 
 <script>
+// ============================================
+// BREAKPOINT SYSTEM CONFIGURATION
+// ============================================
+const BREAKPOINTS = {
+    mobile: {
+        max: 767,
+        minTouchTarget: 44,
+        gridColumns: 1,
+        fontSize: 16
+    },
+    tablet: {
+        min: 768,
+        max: 1023,
+        minTouchTarget: 44,
+        gridColumns: 2,
+        fontSize: 16
+    },
+    desktop: {
+        min: 1024,
+        minTouchTarget: 44,
+        gridColumns: 'auto-fit',
+        fontSize: 14
+    }
+};
+
 /* ── STAR/PARTICLE CANVAS ── */
 const canvas = document.getElementById('starCanvas');
 const ctx = canvas.getContext('2d');
