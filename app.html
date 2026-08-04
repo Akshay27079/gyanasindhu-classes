@@ -4809,8 +4809,9 @@
             
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
-                <div class="glass-card p-6">
+                <div class="glass-card p-6 mb-6">
                     <h3 class="text-xl font-bold mb-4 gold-accent">Mark Attendance</h3>
+                    <input type="hidden" id="teacherAttendanceEditId" value="">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label>Date *</label>
@@ -4829,13 +4830,21 @@
                         </div>
                     </div>
                     <button onclick="loadTeacherAttendanceGrid()" class="btn-gold mb-4">Load Students</button>
+                    <button onclick="clearTeacherAttendanceEdit()" class="btn-gold mb-4 ml-2" style="background: #6b7280;">New Attendance</button>
                     
                     <div id="teacherAttendanceGrid"></div>
                 </div>
+
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 gold-accent">My Past Attendance Records</h3>
+                    <div id="teacherPastAttendance"></div>
+                </div>
             `;
+
+            loadTeacherPastAttendance();
         }
         
-        function loadTeacherAttendanceGrid() {
+        function loadTeacherAttendanceGrid(existingRecord = null) {
             const selectedClass = document.getElementById('teacherAttendanceClass').value;
             if (!selectedClass) {
                 showToast('Please select a class', 'error');
@@ -4843,9 +4852,12 @@
             }
             
             const students = getApprovedStudents().filter(s => s.class === selectedClass);
+            const existingByStudent = new Map((existingRecord?.records || []).map(record => [record.studentId, record]));
+            const editId = document.getElementById('teacherAttendanceEditId').value;
             
             const grid = document.getElementById('teacherAttendanceGrid');
             grid.innerHTML = `
+                ${editId ? '<div class="mb-3 p-3 rounded bg-yellow-900 bg-opacity-30 text-yellow-200"><i class="fas fa-edit mr-2"></i>Editing existing attendance. Save when final; absent messages will be sent after saving.</div>' : ''}
                 <div class="flex flex-wrap gap-2 mb-3">
                     <button type="button" onclick="setAttendanceSelection('teacher-attendance', true)" class="btn-gold text-sm">Select All</button>
                     <button type="button" onclick="setAttendanceSelection('teacher-attendance', false)" class="btn-gold text-sm" style="background: #6b7280;">Clear All</button>
@@ -4863,31 +4875,43 @@
                         </thead>
                         <tbody>
                             ${students.map((s, i) => `
+                                ${(() => {
+                                    const existing = existingByStudent.get(s.id);
+                                    const included = existingRecord ? Boolean(existing) : true;
+                                    const present = existing ? existing.present : true;
+                                    return `
                                 <tr>
                                     <td>
-                                        <input type="checkbox" class="teacher-attendance-student-checkbox" data-student-id="${s.id}" checked>
+                                        <input type="checkbox" class="teacher-attendance-student-checkbox" data-student-id="${s.id}" ${included ? 'checked' : ''}>
                                     </td>
                                     <td>${i + 1}</td>
                                     <td>${s.name}</td>
                                     <td>
-                                        <input type="radio" name="attendance_${s.id}" value="present" checked>
+                                        <input type="radio" name="attendance_${s.id}" value="present" ${present ? 'checked' : ''}>
                                     </td>
                                     <td>
-                                        <input type="radio" name="attendance_${s.id}" value="absent">
+                                        <input type="radio" name="attendance_${s.id}" value="absent" ${!present ? 'checked' : ''}>
                                     </td>
                                 </tr>
+                                    `;
+                                })()}
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
-                <button onclick="saveTeacherAttendance()" class="btn-gold mt-4">Save Attendance</button>
+                <button onclick="saveTeacherAttendance()" class="btn-gold mt-4">${editId ? 'Save Final Edit' : 'Save Attendance'}</button>
             `;
         }
         
         async function saveTeacherAttendance() {
+            const editId = document.getElementById('teacherAttendanceEditId').value;
             const date = document.getElementById('teacherAttendanceDate').value;
             const selectedClass = document.getElementById('teacherAttendanceClass').value;
             const lectureHours = parseFloat(document.getElementById('teacherAttendanceLectureHours').value) || 1;
+            if (checkDuplicateAttendance(date, selectedClass, editId)) {
+                showToast('Attendance for this class on this date already exists', 'error');
+                return;
+            }
             const students = getApprovedStudents().filter(s => s.class === selectedClass);
             const selectedIds = Array.from(document.querySelectorAll('.teacher-attendance-student-checkbox:checked')).map(input => input.dataset.studentId);
             if (selectedIds.length === 0) {
@@ -4904,17 +4928,23 @@
             showLoading();
             
             const attendance = {
-                id: uuid(),
+                id: editId || uuid(),
                 date,
                 class: selectedClass,
                 lectureHours,
                 records,
                 savedBy: currentSession.id,
-                savedAt: new Date().toISOString()
+                savedAt: new Date().toISOString(),
+                editedAt: editId ? new Date().toISOString() : ''
             };
             
             const allAttendance = JSON.parse(localStorage.getItem('gs_attendance'));
-            allAttendance.push(attendance);
+            const existingIndex = allAttendance.findIndex(record => record.id === editId);
+            if (existingIndex >= 0) {
+                allAttendance[existingIndex] = { ...allAttendance[existingIndex], ...attendance };
+            } else {
+                allAttendance.push(attendance);
+            }
             const saved = await saveAttendanceData(allAttendance);
             if (!saved) {
                 hideLoading();
@@ -4930,10 +4960,83 @@
             }
             
             hideLoading();
-            logActivity(`Teacher ${currentSession.name} marked attendance for class ${selectedClass} on ${date}`);
-            showToast('Attendance saved successfully');
+            logActivity(`Teacher ${currentSession.name} ${editId ? 'edited' : 'marked'} attendance for class ${selectedClass} on ${date}`);
+            showToast(editId ? 'Attendance updated successfully' : 'Attendance saved successfully');
             if (notificationResult) showAbsenceNotificationResult(notificationResult);
             renderTeacherAttendance();
+        }
+
+        function loadTeacherPastAttendance() {
+            const allAttendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]')
+                .filter(record => record.savedBy === currentSession.id)
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            const container = document.getElementById('teacherPastAttendance');
+
+            if (allAttendance.length === 0) {
+                container.innerHTML = '<p class="text-gray-400">No attendance records found</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Class</th>
+                                <th>Present</th>
+                                <th>Absent</th>
+                                <th>Hours</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allAttendance.map(record => {
+                                const present = record.records.filter(item => item.present).length;
+                                const absent = record.records.length - present;
+                                return `
+                                    <tr>
+                                        <td>${record.date}</td>
+                                        <td>${record.class}</td>
+                                        <td class="text-green-400">${present}</td>
+                                        <td class="text-red-400">${absent}</td>
+                                        <td>${Number(record.lectureHours || 1).toFixed(2)}</td>
+                                        <td>
+                                            <button onclick="editTeacherAttendanceRecord('${record.id}')" class="text-yellow-400 hover:text-yellow-300">
+                                                <i class="fas fa-edit mr-1"></i>Edit
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function editTeacherAttendanceRecord(id) {
+            const allAttendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
+            const record = allAttendance.find(item => item.id === id && item.savedBy === currentSession.id);
+            if (!record) {
+                showToast('Attendance record not found', 'error');
+                return;
+            }
+
+            document.getElementById('teacherAttendanceEditId').value = record.id;
+            document.getElementById('teacherAttendanceDate').value = record.date;
+            document.getElementById('teacherAttendanceClass').value = record.class;
+            document.getElementById('teacherAttendanceLectureHours').value = record.lectureHours || 1;
+            loadTeacherAttendanceGrid(record);
+            document.getElementById('teacherAttendanceGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function clearTeacherAttendanceEdit() {
+            document.getElementById('teacherAttendanceEditId').value = '';
+            document.getElementById('teacherAttendanceDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('teacherAttendanceClass').value = '';
+            document.getElementById('teacherAttendanceLectureHours').value = 1;
+            document.getElementById('teacherAttendanceGrid').innerHTML = '';
         }
         
         // ============================================
