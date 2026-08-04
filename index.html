@@ -183,8 +183,47 @@
             text-decoration: none;
             font-size: 1.1rem;
             font-weight: 500;
+            padding: 8px 0;
+            border-radius: 4px;
+            transition: all 0.3s;
         }
-        .mobile-menu a:hover { color: var(--gold); }
+        .mobile-menu a:hover { 
+            color: var(--gold); 
+            background: rgba(245,166,35,0.1);
+            padding-left: 12px;
+        }
+
+        /* Fix mobile navigation responsive issues */
+        @media (max-width: 768px) {
+            .mobile-menu {
+                top: 68px;
+                padding: 20px 4%;
+            }
+            
+            .mobile-menu a {
+                font-size: 1.05rem;
+                padding: 12px 16px;
+                border-radius: 8px;
+                text-align: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .mobile-menu {
+                top: 64px;
+                padding: 16px 3%;
+            }
+            
+            .mobile-menu a {
+                font-size: 1rem;
+                padding: 14px 16px;
+                margin-bottom: 4px;
+            }
+            
+            .hamburger {
+                font-size: 1.4rem;
+            }
+        }
 
         /* ── HERO ── */
         #hero {
@@ -844,13 +883,444 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Responsive */
+        /* ── RESPONSIVE DESIGN ── */
+        
+        /* Large tablets */
+        @media (max-width: 1024px) {
+            .nav-links {
+                gap: 24px;
+            }
+            .hero-title {
+                font-size: clamp(2rem, 5vw, 4.5rem);
+            }
+            .courses-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            section {
+                padding: 80px 5%;
+            }
+        }
+        
+        /* Tablets */
         @media (max-width: 768px) {
             .nav-links, .nav-cta { display: none; }
             .hamburger { display: block; }
-            section { padding: 70px 5%; }
-            .hero-stats { gap: 12px; }
-            .stat-card { padding: 16px 22px; }
+            
+            section { 
+                padding: 60px 5%; 
+            }
+            
+            .hero-stats { 
+                gap: 12px; 
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .stat-card { 
+                padding: 16px 20px;
+                min-width: 140px;
+                flex: 1;
+            }
+            
+            .hero-actions {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+            
+            .btn-primary, .btn-secondary, .btn-whatsapp {
+                width: 100%;
+                max-width: 300px;
+                text-align: center;
+                justify-content: center;
+            }
+            
+            .courses-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .feature-item {
+                padding: 20px 18px;
+            }
+            
+            .cta-section {
+                padding: 60px 5%;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+            
+            .cta-buttons .btn-primary,
+            .cta-buttons .btn-whatsapp {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+        
+        /* Small tablets and large phones */
+        @media (max-width: 640px) {
+            section {
+                padding: 50px 4%;
+            }
+            
+            .hero-title {
+                font-size: clamp(1.8rem, 8vw, 3.5rem);
+                margin-bottom: 12px;
+            }
+            
+            .hero-subtitle {
+                font-size: 1rem;
+                margin-bottom: 28px;
+            }
+            
+            .hero-badge {
+                font-size: 0.75rem;
+                padding: 5px 16px;
+                margin-bottom: 20px;
+            }
+            
+            .hero-stats {
+                margin-top: 40px;
+                gap: 10px;
+            }
+            
+            .stat-card {
+                padding: 14px 16px;
+                min-width: 120px;
+            }
+            
+            .stat-number {
+                font-size: 1.8rem;
+            }
+            
+            .stat-label {
+                font-size: 0.8rem;
+            }
+            
+            .course-card {
+                padding: 28px 20px;
+            }
+            
+            .card-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.4rem;
+                margin-bottom: 16px;
+            }
+            
+            .card-title {
+                font-size: 1rem;
+            }
+            
+            .card-features li {
+                font-size: 0.9rem;
+            }
+            
+            .feature-item {
+                flex-direction: column;
+                text-align: center;
+                padding: 20px;
+            }
+            
+            .feature-icon {
+                margin: 0 auto 12px;
+            }
+            
+            .popup-box {
+                padding: 30px 20px;
+                margin: 0 15px;
+            }
+            
+            .form-group input,
+            .form-group select {
+                padding: 14px 16px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+        
+        /* Mobile phones */
+        @media (max-width: 480px) {
+            #hero {
+                padding: 100px 4% 60px;
+            }
+            
+            section {
+                padding: 40px 4%;
+            }
+            
+            .nav-brand .nav-title {
+                font-size: 1rem;
+            }
+            
+            .nav-logo {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .hero-title {
+                font-size: clamp(1.6rem, 8vw, 3rem);
+                line-height: 1.2;
+            }
+            
+            .hero-subtitle {
+                font-size: 0.9rem;
+                line-height: 1.6;
+            }
+            
+            .hero-badge {
+                font-size: 0.7rem;
+                padding: 4px 12px;
+            }
+            
+            .hero-stats {
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                margin-top: 30px;
+            }
+            
+            .stat-card {
+                padding: 12px 16px;
+                width: 100%;
+                max-width: 200px;
+            }
+            
+            .section-title {
+                font-size: clamp(1.5rem, 6vw, 2.5rem);
+            }
+            
+            .section-tag {
+                font-size: 0.7rem;
+                padding: 3px 12px;
+            }
+            
+            .course-card {
+                padding: 24px 18px;
+            }
+            
+            .card-title {
+                font-size: 0.95rem;
+            }
+            
+            .card-grade {
+                font-size: 0.85rem;
+            }
+            
+            .card-features li {
+                font-size: 0.85rem;
+            }
+            
+            .card-btn {
+                padding: 12px;
+                font-size: 0.9rem;
+            }
+            
+            .feature-item {
+                padding: 18px 16px;
+            }
+            
+            .feature-icon {
+                width: 42px;
+                height: 42px;
+                font-size: 1rem;
+            }
+            
+            .feature-text h4 {
+                font-size: 0.9rem;
+            }
+            
+            .feature-text p {
+                font-size: 0.8rem;
+            }
+            
+            .cta-section {
+                padding: 50px 4%;
+            }
+            
+            .cta-section h3 {
+                font-size: clamp(1.4rem, 6vw, 2.2rem);
+            }
+            
+            .cta-section p {
+                font-size: 0.9rem;
+            }
+            
+            .popup-box {
+                padding: 25px 18px;
+                margin: 0 10px;
+            }
+            
+            .popup-box h3 {
+                font-size: 1.3rem;
+            }
+            
+            .popup-box p {
+                font-size: 0.85rem;
+            }
+            
+            .btn-primary,
+            .btn-secondary,
+            .btn-whatsapp {
+                padding: 12px 24px;
+                font-size: 0.95rem;
+            }
+            
+            .mobile-menu {
+                padding: 20px 4%;
+            }
+            
+            .mobile-menu a {
+                font-size: 1rem;
+                padding: 8px 0;
+            }
+            
+            .privacy-card {
+                padding: 24px 20px;
+            }
+            
+            .privacy-card p {
+                font-size: 0.9rem;
+            }
+            
+            .privacy-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+        
+        /* Small mobile devices */
+        @media (max-width: 360px) {
+            body {
+                font-size: 14px;
+            }
+            
+            #hero {
+                padding: 90px 3% 50px;
+            }
+            
+            section {
+                padding: 35px 3%;
+            }
+            
+            .nav-brand .nav-title {
+                font-size: 0.9rem;
+            }
+            
+            .nav-logo {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .hero-title {
+                font-size: clamp(1.4rem, 9vw, 2.5rem);
+            }
+            
+            .hero-subtitle {
+                font-size: 0.85rem;
+            }
+            
+            .hero-actions {
+                gap: 10px;
+            }
+            
+            .btn-primary,
+            .btn-secondary,
+            .btn-whatsapp {
+                padding: 11px 20px;
+                font-size: 0.9rem;
+                min-height: 44px; /* Touch target */
+            }
+            
+            .stat-card {
+                padding: 10px 14px;
+            }
+            
+            .stat-number {
+                font-size: 1.6rem;
+            }
+            
+            .stat-label {
+                font-size: 0.75rem;
+            }
+            
+            .course-card {
+                padding: 20px 16px;
+            }
+            
+            .card-icon {
+                width: 48px;
+                height: 48px;
+                font-size: 1.2rem;
+            }
+            
+            .popup-box {
+                padding: 20px 15px;
+                margin: 0 8px;
+            }
+            
+            .form-group input,
+            .form-group select {
+                padding: 12px 14px;
+                font-size: 16px; /* Prevents zoom */
+            }
+            
+            .footer-grid {
+                gap: 25px;
+            }
+            
+            .footer-social a {
+                width: 36px;
+                height: 36px;
+                font-size: 0.85rem;
+            }
+            
+            .privacy-card {
+                padding: 20px 16px;
+            }
+        }
+        
+        /* Very small devices */
+        @media (max-width: 320px) {
+            .hero-title {
+                font-size: clamp(1.3rem, 9vw, 2.2rem);
+            }
+            
+            .btn-primary,
+            .btn-secondary,
+            .btn-whatsapp {
+                font-size: 0.85rem;
+                padding: 10px 16px;
+            }
+            
+            .course-card {
+                padding: 18px 14px;
+            }
+            
+            .popup-box {
+                padding: 18px 12px;
+                margin: 0 5px;
+            }
+            
+            .section-title {
+                font-size: clamp(1.3rem, 7vw, 2rem);
+            }
         }
     </style>
 </head>
