@@ -1,0 +1,45 @@
+name: Security Checks
+
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check for exposed secrets
+        run: |
+          echo "Checking for hardcoded secrets..."
+          if grep -r "password\|api_key\|secret" --include="*.html" --include="*.js" --include="*.json" 2>/dev/null | grep -v "node_modules" | grep -v ".kiro"; then
+            echo "⚠️  WARNING: Possible hardcoded secrets found"
+            exit 1
+          fi
+          echo "✓ No hardcoded secrets detected"
+      
+      - name: Verify security headers
+        run: |
+          echo "Checking for security headers..."
+          if grep -q "Content-Security-Policy" a:/Dnyansidhu/index.html; then
+            echo "✓ CSP header found in index.html"
+          else
+            echo "✗ CSP header missing in index.html"
+            exit 1
+          fi
+          
+          if grep -q "X-Content-Type-Options" a:/Dnyansidhu/index.html; then
+            echo "✓ X-Content-Type-Options header found"
+          else
+            echo "✗ X-Content-Type-Options header missing"
+            exit 1
+          fi
+      
+      - name: Check for vulnerable patterns
+        run: |
+          echo "Checking for vulnerable code patterns..."
+          # Check for eval usage
+          if grep -r "eval(" --include="*.js" --include="*.html" 2>/dev/null | grep -v "node_modules"; then
+            echo "⚠️  WARNING: eval() usage detected"
+            exit 1
+          fi
+          echo "✓ No eval() usage detected"

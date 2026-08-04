@@ -28,6 +28,13 @@ Thumbs.db
 .env
 .env.local
 
+# Secrets and sensitive files
+*.key
+*.pem
+secrets/
+credentials/
+private_keys/
+
 # Logs
 *.log
 npm-debug.log*

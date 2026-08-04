@@ -9,6 +9,17 @@
     <meta name="theme-color" content="#04152d">
     <title>ज्ञानसिंधू क्लासेस - ज्ञानातून यशाकडे | नेरळ कोचिंग क्लासेस</title>
 
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://docs.google.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';">
+    
+    <!-- Security Meta Tags -->
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="permissions-policy" content="camera=(), microphone=(), geolocation=()">
+
     <!-- SEO Meta Tags -->
     <meta name="description" content="ज्ञानसिंधू क्लासेस नेरळ - इ. ८वी ते १२वी साठी नेरळमधील सर्वोत्तम कोचिंग क्लासेस. सायन्स, कॉमर्स, आर्ट्स विभाग.">
     <meta name="keywords" content="ज्ञानसिंधू क्लासेस, नेरळ क्लासेस, coaching classes neral, best classes neral, dnyansindhu classes neral">
@@ -1746,6 +1757,16 @@
             }
         }
     </style>
+
+    <!-- Security Utilities -->
+    <script>
+        // Disable browser dev tools detection (security through obscurity only)
+        Object.defineProperty(window, 'devtools', {
+            get() {
+                return {open: false, close: false, setExtensionAPI: function() {}};
+            }
+        });
+    </script>
 </head>
 <body>
 
