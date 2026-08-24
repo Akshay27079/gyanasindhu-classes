@@ -4930,21 +4930,26 @@
             
             filteredMarks.forEach(m => {
                 const studentMark = m.records.find(r => r.studentId === student.id);
-                if (studentMark) {
-                    if (!subjectMap[m.subject]) {
-                        subjectMap[m.subject] = { total: 0, obtained: 0, tests: [] };
-                    }
-                    subjectMap[m.subject].total += m.total;
-                    subjectMap[m.subject].obtained += studentMark.marks;
-                    subjectMap[m.subject].tests.push({
-                        test: m.test,
-                        total: m.total,
-                        obtained: studentMark.marks,
-                        percentage: ((studentMark.marks / m.total) * 100).toFixed(2)
-                    });
-                    totalMarks += m.total;
-                    obtainedMarks += studentMark.marks;
+                
+                // Skip if student was absent (no record or null/undefined/empty marks)
+                if (!studentMark || studentMark.marks === null || studentMark.marks === undefined || 
+                    studentMark.marks === '' || studentMark.marks === 'AB' || studentMark.marks === 'Absent') {
+                    return; // Student was absent, skip this exam
                 }
+                
+                if (!subjectMap[m.subject]) {
+                    subjectMap[m.subject] = { total: 0, obtained: 0, tests: [] };
+                }
+                subjectMap[m.subject].total += m.total;
+                subjectMap[m.subject].obtained += parseInt(studentMark.marks);
+                subjectMap[m.subject].tests.push({
+                    test: m.test,
+                    total: m.total,
+                    obtained: parseInt(studentMark.marks),
+                    percentage: ((parseInt(studentMark.marks) / m.total) * 100).toFixed(2)
+                });
+                totalMarks += m.total;
+                obtainedMarks += parseInt(studentMark.marks);
             });
             
             const subjectData = Object.keys(subjectMap).map(subject => ({
