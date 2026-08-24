@@ -19,6 +19,12 @@
     <title>ज्ञानसिंधू क्लासेस - व्यवस्थापन पॅनेल</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Chart.js for pie charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- html2pdf.js for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* SECURITY NOTE: This is a client-side only app intended for internal use on a private URL.
            Password storage in localStorage is NOT suitable for public-facing production environments.
@@ -4628,6 +4634,8 @@
         // ADMIN: REPORTS
         // ============================================
         
+        let currentReportData = null; // Store current report for PDF generation
+        
         function renderAdminReports() {
             document.getElementById('pageTitle').textContent = 'Student Progress Reports';
             
@@ -4687,6 +4695,7 @@
                                         <option value="2024">2024</option>
                                         <option value="2025">2025</option>
                                         <option value="2026" selected>2026</option>
+                                        <option value="2027">2027</option>
                                     </select>
                                 </div>
                                 <button onclick="generateYearlyReport()" class="btn-gold w-full">
@@ -4713,10 +4722,10 @@
                                         <option value="8">Class 8</option>
                                         <option value="9">Class 9</option>
                                         <option value="10">Class 10</option>
-                                        <option value="11-science">11 Science</option>
-                                        <option value="11-commerce">11 Commerce</option>
-                                        <option value="12-science">12 Science</option>
-                                        <option value="12-commerce">12 Commerce</option>
+                                        <option value="11">Class 11 (Science)</option>
+                                        <option value="11">Class 11 (Commerce)</option>
+                                        <option value="12">Class 12 (Science)</option>
+                                        <option value="12">Class 12 (Commerce)</option>
                                     </select>
                                 </div>
                                 <div>
@@ -4763,14 +4772,14 @@
                 
                 <!-- Report Preview Area -->
                 <div id="reportPreview" class="glass-card p-6 hidden">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                         <h3 class="text-xl font-bold gold-accent">Report Preview</h3>
-                        <div class="space-x-2">
-                            <button onclick="printReport()" class="btn-gold">
-                                <i class="fas fa-print mr-2"></i>Print
-                            </button>
+                        <div class="flex flex-wrap gap-2">
                             <button onclick="downloadReportPDF()" class="btn-gold">
                                 <i class="fas fa-download mr-2"></i>Download PDF
+                            </button>
+                            <button onclick="printReport()" class="btn-gold">
+                                <i class="fas fa-print mr-2"></i>Print
                             </button>
                             <button onclick="closeReportPreview()" class="btn-gold">
                                 <i class="fas fa-times mr-2"></i>Close
@@ -4782,7 +4791,7 @@
             `;
             
             // Populate student dropdowns
-            const students = JSON.parse(localStorage.getItem('gs_students'));
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
             const studentOptions = students.map(s => 
                 `<option value="${s.id}">${s.name} (${s.class})</option>`
             ).join('');
@@ -4807,10 +4816,18 @@
                 return;
             }
             
-            const student = JSON.parse(localStorage.getItem('gs_students')).find(s => s.id === studentId);
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            const student = students.find(s => s.id === studentId);
+            
+            if (!student) {
+                showToast('Student not found', 'error');
+                return;
+            }
+            
             const [year, monthNum] = month.split('-');
             
             const report = generateStudentReport(student, 'monthly', { year, month: monthNum });
+            currentReportData = report;
             displayReport(report);
         }
         
@@ -4823,8 +4840,16 @@
                 return;
             }
             
-            const student = JSON.parse(localStorage.getItem('gs_students')).find(s => s.id === studentId);
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            const student = students.find(s => s.id === studentId);
+            
+            if (!student) {
+                showToast('Student not found', 'error');
+                return;
+            }
+            
             const report = generateStudentReport(student, 'yearly', { year });
+            currentReportData = report;
             displayReport(report);
         }
         
@@ -4837,16 +4862,24 @@
                 return;
             }
             
-            const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === classValue);
+            const allStudents = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            const students = allStudents.filter(s => s.class === classValue);
+            
+            if (students.length === 0) {
+                showToast('No students found in this class', 'error');
+                return;
+            }
+            
             const [year, monthNum] = month.split('-');
             
             const report = generateClassProgressReport(students, classValue, { year, month: monthNum });
+            currentReportData = report;
             displayReport(report);
         }
         
         function generateStudentReport(student, type, period) {
-            const attendance = JSON.parse(localStorage.getItem('gs_attendance'));
-            const marks = JSON.parse(localStorage.getItem('gs_marks'));
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
+            const marks = JSON.parse(localStorage.getItem('gs_marks') || '[]');
             
             let filteredAttendance, filteredMarks;
             
@@ -4890,17 +4923,21 @@
             
             const attendancePercentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(2) : 0;
             
-            // Calculate marks stats
-            const marksData = [];
+            // Calculate marks stats by subject
+            const subjectMap = {};
             let totalMarks = 0;
             let obtainedMarks = 0;
             
             filteredMarks.forEach(m => {
                 const studentMark = m.records.find(r => r.studentId === student.id);
                 if (studentMark) {
-                    marksData.push({
+                    if (!subjectMap[m.subject]) {
+                        subjectMap[m.subject] = { total: 0, obtained: 0, tests: [] };
+                    }
+                    subjectMap[m.subject].total += m.total;
+                    subjectMap[m.subject].obtained += studentMark.marks;
+                    subjectMap[m.subject].tests.push({
                         test: m.test,
-                        subject: m.subject,
                         total: m.total,
                         obtained: studentMark.marks,
                         percentage: ((studentMark.marks / m.total) * 100).toFixed(2)
@@ -4909,6 +4946,14 @@
                     obtainedMarks += studentMark.marks;
                 }
             });
+            
+            const subjectData = Object.keys(subjectMap).map(subject => ({
+                subject,
+                total: subjectMap[subject].total,
+                obtained: subjectMap[subject].obtained,
+                percentage: ((subjectMap[subject].obtained / subjectMap[subject].total) * 100).toFixed(2),
+                tests: subjectMap[subject].tests
+            }));
             
             const overallPercentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
             
@@ -4920,6 +4965,8 @@
                 `Academic Year ${period.year}`;
             
             return {
+                type: 'student',
+                reportType: type,
                 title: `${type === 'monthly' ? 'Monthly' : 'Yearly'} Progress Report`,
                 period: periodText,
                 student,
@@ -4929,7 +4976,7 @@
                     absent: totalDays - presentDays,
                     percentage: attendancePercentage
                 },
-                marks: marksData,
+                subjects: subjectData,
                 overall: {
                     totalMarks,
                     obtainedMarks,
@@ -4939,8 +4986,8 @@
         }
         
         function generateClassProgressReport(students, classValue, period) {
-            const marks = JSON.parse(localStorage.getItem('gs_marks'));
-            const attendance = JSON.parse(localStorage.getItem('gs_attendance'));
+            const marks = JSON.parse(localStorage.getItem('gs_marks') || '[]');
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
             
             const [year, monthNum] = [period.year, period.month];
             
@@ -4951,9 +4998,18 @@
                        m.class === classValue;
             });
             
+            const filteredAttendance = attendance.filter(a => {
+                const aDate = new Date(a.date);
+                return aDate.getFullYear() == year && 
+                       (aDate.getMonth() + 1) == monthNum &&
+                       a.class === classValue;
+            });
+            
             const studentStats = students.map(student => {
                 let totalMarks = 0;
                 let obtainedMarks = 0;
+                let totalDays = 0;
+                let presentDays = 0;
                 
                 filteredMarks.forEach(m => {
                     const studentMark = m.records.find(r => r.studentId === student.id);
@@ -4963,25 +5019,49 @@
                     }
                 });
                 
+                filteredAttendance.forEach(a => {
+                    const studentRecord = a.records.find(r => r.studentId === student.id);
+                    if (studentRecord) {
+                        totalDays++;
+                        if (studentRecord.present) presentDays++;
+                    }
+                });
+                
                 const percentage = totalMarks > 0 ? ((obtainedMarks / totalMarks) * 100).toFixed(2) : 0;
+                const attendancePercentage = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(2) : 0;
                 
                 return {
                     name: student.name,
                     totalMarks,
                     obtainedMarks,
-                    percentage
+                    percentage,
+                    attendance: attendancePercentage
                 };
             }).sort((a, b) => b.percentage - a.percentage);
             
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
                                'July', 'August', 'September', 'October', 'November', 'December'];
             
+            // Calculate class statistics
+            const totalStudents = studentStats.length;
+            const avgPercentage = totalStudents > 0 ? 
+                (studentStats.reduce((sum, s) => sum + parseFloat(s.percentage), 0) / totalStudents).toFixed(2) : 0;
+            const avgAttendance = totalStudents > 0 ?
+                (studentStats.reduce((sum, s) => sum + parseFloat(s.attendance), 0) / totalStudents).toFixed(2) : 0;
+            
             return {
+                type: 'class',
                 title: `Class ${classValue} Progress Report`,
                 period: `${monthNames[monthNum - 1]} ${year}`,
                 class: classValue,
                 students: studentStats,
-                totalStudents: students.length
+                totalStudents,
+                statistics: {
+                    avgPercentage,
+                    avgAttendance,
+                    highest: studentStats[0]?.percentage || 0,
+                    lowest: studentStats[studentStats.length - 1]?.percentage || 0
+                }
             };
         }
         
@@ -4989,41 +5069,512 @@
             const preview = document.getElementById('reportPreview');
             const content = document.getElementById('reportContent');
             
-            if (report.students) {
-                // Class report
+            if (report.type === 'class') {
+                // Class report with pie chart
                 content.innerHTML = `
-                    <div class="text-center mb-6">
-                        <img src="Logo.jpg" alt="Logo" width="80" height="80" loading="lazy" decoding="async" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px;">
-                        <h1 class="text-2xl font-bold" style="color: #f5c518;">ज्ञानसिंधू क्लासेस</h1>
-                        <p class="text-sm">नेरळ</p>
-                        <h2 class="text-xl font-bold mt-4">${report.title}</h2>
-                        <p class="text-sm">${report.period}</p>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <p><strong>Total Students:</strong> ${report.totalStudents}</p>
-                    </div>
-                    
-                    <table class="w-full" style="border: 1px solid #ccc;">
-                        <thead style="background: #f5c518; color: #000;">
-                            <tr>
-                                <th style="border: 1px solid #ccc; padding: 8px;">Rank</th>
-                                <th style="border: 1px solid #ccc; padding: 8px;">Student Name</th>
-                                <th style="border: 1px solid #ccc; padding: 8px;">Total Marks</th>
-                                <th style="border: 1px solid #ccc; padding: 8px;">Obtained</th>
-                                <th style="border: 1px solid #ccc; padding: 8px;">Percentage</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${report.students.map((s, i) => `
-                                <tr>
-                                    <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${i + 1}</td>
-                                    <td style="border: 1px solid #ccc; padding: 8px;">${s.name}</td>
-                                    <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${s.totalMarks}</td>
-                                    <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${s.obtainedMarks}</td>
-                                    <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${s.percentage}%</td>
+                    <div style="font-family: Arial, sans-serif;">
+                        <div style="text-center margin-bottom: 24px;">
+                            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                                <img src="Logo.jpg" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
+                                <div>
+                                    <h1 style="font-size: 28px; font-weight: bold; color: #f5c518; margin: 0;">ज्ञानसिंधू क्लासेस</h1>
+                                    <p style="margin: 4px 0; color: #666;">Dnyansindhu Classes, Neral</p>
+                                </div>
+                            </div>
+                            <h2 style="font-size: 22px; font-weight: bold; margin: 16px 0;">${report.title}</h2>
+                            <p style="color: #666;">${report.period}</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px;">
+                            <h3 style="color: #f5c518; margin-bottom: 12px;">Class Statistics</h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                                <div>
+                                    <strong>Total Students:</strong> ${report.totalStudents}
+                                </div>
+                                <div>
+                                    <strong>Average Marks:</strong> ${report.statistics.avgPercentage}%
+                                </div>
+                                <div>
+                                    <strong>Highest Score:</strong> ${report.statistics.highest}%
+                                </div>
+                                <div>
+                                    <strong>Lowest Score:</strong> ${report.statistics.lowest}%
+                                </div>
+                                <div>
+                                    <strong>Average Attendance:</strong> ${report.statistics.avgAttendance}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pie Chart Container -->
+                        <div style="margin-bottom: 24px; text-align: center;">
+                            <h3 style="color: #f5c518; margin-bottom: 12px;">Performance Distribution</h3>
+                            <canvas id="classPerformanceChart" width="400" height="200"></canvas>
+                        </div>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
+                            <thead>
+                                <tr style="background: #f5c518; color: #000;">
+                                    <th style="border: 1px solid #ccc; padding: 12px; text-align: left;">Rank</th>
+                                    <th style="border: 1px solid #ccc; padding: 12px; text-align: left;">Student Name</th>
+                                    <th style="border: 1px solid #ccc; padding: 12px; text-align: center;">Total Marks</th>
+                                    <th style="border: 1px solid #ccc; padding: 12px; text-align: center;">Obtained</th>
+                                    <th style="border: 1px solid #ccc; padding: 12px; text-align: center;">Percentage</th>
+                                    <th style="border: 1px solid #ccc; padding: 12px; text-align: center;">Attendance</th>
                                 </tr>
-                            `).join('')}
+                            </thead>
+                            <tbody>
+                                ${report.students.map((s, i) => `
+                                    <tr style="${i % 2 === 0 ? 'background: #f9f9f9;' : ''}">
+                                        <td style="border: 1px solid #ccc; padding: 12px; text-align: center; font-weight: bold;">
+                                            ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                                        </td>
+                                        <td style="border: 1px solid #ccc; padding: 12px;">${s.name}</td>
+                                        <td style="border: 1px solid #ccc; padding: 12px; text-align: center;">${s.totalMarks}</td>
+                                        <td style="border: 1px solid #ccc; padding: 12px; text-align: center;">${s.obtainedMarks}</td>
+                                        <td style="border: 1px solid #ccc; padding: 12px; text-align: center; font-weight: bold;">${s.percentage}%</td>
+                                        <td style="border: 1px solid #ccc; padding: 12px; text-align: center;">${s.attendance}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        
+                        <div style="margin-top: 32px; padding-top: 16px; border-top: 2px solid #f5c518; text-align: center; color: #666; font-size: 12px;">
+                            <p>Generated on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                            <p style="margin-top: 24px;">_______________________________</p>
+                            <p style="margin-top: 8px;">Authorized Signature</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Render pie chart after a short delay to ensure canvas is in DOM
+                setTimeout(() => {
+                    renderClassPerformanceChart(report);
+                }, 100);
+                
+            } else {
+                // Individual student report with pie charts
+                content.innerHTML = `
+                    <div style="font-family: Arial, sans-serif;">
+                        <div style="text-center margin-bottom: 24px;">
+                            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                                <img src="Logo.jpg" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
+                                <div>
+                                    <h1 style="font-size: 28px; font-weight: bold; color: #f5c518; margin: 0;">ज्ञानसिंधू क्लासेस</h1>
+                                    <p style="margin: 4px 0; color: #666;">Dnyansindhu Classes, Neral</p>
+                                </div>
+                            </div>
+                            <h2 style="font-size: 22px; font-weight: bold; margin: 16px 0;">${report.title}</h2>
+                            <p style="color: #666;">${report.period}</p>
+                        </div>
+                        
+                        <div style="margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px;">
+                            <h3 style="color: #f5c518; margin-bottom: 12px;">Student Information</h3>
+                            <table style="width: 100%;">
+                                <tr>
+                                    <td style="padding: 8px;"><strong>Name:</strong></td>
+                                    <td style="padding: 8px;">${report.student.name}</td>
+                                    <td style="padding: 8px;"><strong>Class:</strong></td>
+                                    <td style="padding: 8px;">${report.student.class}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px;"><strong>Father's Name:</strong></td>
+                                    <td style="padding: 8px;">${report.student.fatherName}</td>
+                                    <td style="padding: 8px;"><strong>Phone:</strong></td>
+                                    <td style="padding: 8px;">${report.student.phone}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        <!-- Attendance Pie Chart -->
+                        <div style="margin-bottom: 24px;">
+                            <h3 style="color: #f5c518; margin-bottom: 12px;">Attendance Summary</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center;">
+                                <div>
+                                    <canvas id="attendanceChart" width="300" height="300"></canvas>
+                                </div>
+                                <div>
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 12px; background: #f9f9f9;"><strong>Total Days:</strong></td>
+                                            <td style="border: 1px solid #ccc; padding: 12px;">${report.attendance.total}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 12px; background: #f9f9f9;"><strong>Present:</strong></td>
+                                            <td style="border: 1px solid #ccc; padding: 12px; color: #22c55e; font-weight: bold;">${report.attendance.present}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 12px; background: #f9f9f9;"><strong>Absent:</strong></td>
+                                            <td style="border: 1px solid #ccc; padding: 12px; color: #ef4444; font-weight: bold;">${report.attendance.absent}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="border: 1px solid #ccc; padding: 12px; background: #f5c518;"><strong>Attendance %:</strong></td>
+                                            <td style="border: 1px solid #ccc; padding: 12px; background: #f5c518; font-weight: bold; font-size: 18px;">${report.attendance.percentage}%</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Academic Performance -->
+                        <div style="margin-bottom: 24px;">
+                            <h3 style="color: #f5c518; margin-bottom: 12px;">Academic Performance</h3>
+                            ${report.subjects.length > 0 ? `
+                                <!-- Subject-wise Performance Chart -->
+                                <div style="margin-bottom: 24px; text-align: center;">
+                                    <canvas id="subjectChart" width="400" height="200"></canvas>
+                                </div>
+                                
+                                <!-- Subject Details -->
+                                ${report.subjects.map(subject => `
+                                    <div style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-left: 4px solid #f5c518; border-radius: 4px;">
+                                        <h4 style="margin-bottom: 8px; font-size: 16px;"><strong>${subject.subject}</strong> - ${subject.percentage}%</h4>
+                                        <table style="width: 100%; font-size: 14px;">
+                                            <thead>
+                                                <tr style="background: #e5e5e5;">
+                                                    <th style="padding: 6px; text-align: left;">Test</th>
+                                                    <th style="padding: 6px; text-align: center;">Total</th>
+                                                    <th style="padding: 6px; text-align: center;">Obtained</th>
+                                                    <th style="padding: 6px; text-align: center;">%</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${subject.tests.map(test => `
+                                                    <tr>
+                                                        <td style="padding: 6px;">${test.test}</td>
+                                                        <td style="padding: 6px; text-align: center;">${test.total}</td>
+                                                        <td style="padding: 6px; text-align: center;">${test.obtained}</td>
+                                                        <td style="padding: 6px; text-align: center;">${test.percentage}%</td>
+                                                    </tr>
+                                                `).join('')}
+                                                <tr style="background: #e5e5e5; font-weight: bold;">
+                                                    <td style="padding: 6px;">Subject Total</td>
+                                                    <td style="padding: 6px; text-align: center;">${subject.total}</td>
+                                                    <td style="padding: 6px; text-align: center;">${subject.obtained}</td>
+                                                    <td style="padding: 6px; text-align: center;">${subject.percentage}%</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                `).join('')}
+                                
+                                <!-- Overall Summary -->
+                                <div style="margin-top: 24px; padding: 16px; background: #f5c518; border-radius: 8px;">
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+                                        <div>
+                                            <div style="font-size: 14px; margin-bottom: 4px;">Total Marks</div>
+                                            <div style="font-size: 24px; font-weight: bold;">${report.overall.totalMarks}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 14px; margin-bottom: 4px;">Obtained Marks</div>
+                                            <div style="font-size: 24px; font-weight: bold;">${report.overall.obtainedMarks}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 14px; margin-bottom: 4px;">Overall Percentage</div>
+                                            <div style="font-size: 28px; font-weight: bold;">${report.overall.percentage}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : '<p style="color: #999; padding: 24px; text-align: center; background: #f9f9f9; border-radius: 8px;">No marks data available for this period.</p>'}
+                        </div>
+                        
+                        <!-- Remarks -->
+                        <div style="margin-bottom: 24px; padding: 16px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                            <h3 style="color: #1976d2; margin-bottom: 8px;">Teacher's Remarks</h3>
+                            <p style="color: #333; line-height: 1.6;">${getPerformanceRemark(report.overall.percentage, report.attendance.percentage)}</p>
+                        </div>
+                        
+                        <div style="margin-top: 32px; padding-top: 16px; border-top: 2px solid #f5c518; text-align: center; color: #666; font-size: 12px;">
+                            <p>Generated on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+                            <p style="margin-top: 24px;">_______________________________</p>
+                            <p style="margin-top: 8px;">Authorized Signature</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Render charts after a short delay to ensure canvas is in DOM
+                setTimeout(() => {
+                    renderAttendanceChart(report);
+                    if (report.subjects.length > 0) {
+                        renderSubjectChart(report);
+                    }
+                }, 100);
+            }
+            
+            preview.classList.remove('hidden');
+            preview.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function renderAttendanceChart(report) {
+            const canvas = document.getElementById('attendanceChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Present', 'Absent'],
+                    datasets: [{
+                        data: [report.attendance.present, report.attendance.absent],
+                        backgroundColor: ['#22c55e', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 14 },
+                                padding: 15
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Attendance: ${report.attendance.percentage}%`,
+                            font: { size: 16, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderSubjectChart(report) {
+            const canvas = document.getElementById('subjectChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            const colors = ['#f5c518', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#f97316'];
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: report.subjects.map(s => s.subject),
+                    datasets: [{
+                        label: 'Percentage',
+                        data: report.subjects.map(s => parseFloat(s.percentage)),
+                        backgroundColor: colors.slice(0, report.subjects.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Subject-wise Performance',
+                            font: { size: 16, weight: 'bold' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderClassPerformanceChart(report) {
+            const canvas = document.getElementById('classPerformanceChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Categorize students by performance
+            const excellent = report.students.filter(s => parseFloat(s.percentage) >= 90).length;
+            const good = report.students.filter(s => parseFloat(s.percentage) >= 75 && parseFloat(s.percentage) < 90).length;
+            const average = report.students.filter(s => parseFloat(s.percentage) >= 60 && parseFloat(s.percentage) < 75).length;
+            const needsImprovement = report.students.filter(s => parseFloat(s.percentage) < 60).length;
+            
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Excellent (90%+)', 'Good (75-89%)', 'Average (60-74%)', 'Needs Improvement (<60%)'],
+                    datasets: [{
+                        data: [excellent, good, average, needsImprovement],
+                        backgroundColor: ['#22c55e', '#3b82f6', '#f5c518', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { size: 12 },
+                                padding: 10
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getPerformanceRemark(academicPercentage, attendancePercentage) {
+            const academic = parseFloat(academicPercentage) || 0;
+            const attendance = parseFloat(attendancePercentage) || 0;
+            
+            if (academic >= 90 && attendance >= 90) {
+                return "🌟 Outstanding performance! The student demonstrates exceptional academic excellence and exemplary attendance. Keep up the excellent work!";
+            } else if (academic >= 80 && attendance >= 85) {
+                return "👏 Excellent work! Strong academic performance with consistent attendance. Continue this momentum for even greater achievements.";
+            } else if (academic >= 70 && attendance >= 80) {
+                return "👍 Good performance! The student shows solid understanding of concepts. With continued effort, can achieve even better results.";
+            } else if (academic >= 60 && attendance >= 75) {
+                return "💪 Satisfactory progress! There is definite potential for improvement. More focus and regular practice will help achieve better grades.";
+            } else if (attendance < 75) {
+                return "⚠️ Attendance needs significant improvement. Regular attendance is fundamental to academic success. Please ensure the student attends classes consistently.";
+            } else if (academic < 60) {
+                return "📚 Needs considerable improvement in academic performance. Recommend additional practice, regular homework completion, and seeking help when needed.";
+            } else {
+                return "⚡ Shows potential but requires more consistent effort. Both attendance and academic performance need attention for optimal learning outcomes.";
+            }
+        }
+        
+        function closeReportPreview() {
+            document.getElementById('reportPreview').classList.add('hidden');
+            currentReportData = null;
+        }
+        
+        function printReport() {
+            const content = document.getElementById('reportContent').cloneNode(true);
+            
+            // Remove charts for printing (they don't print well)
+            const canvases = content.querySelectorAll('canvas');
+            canvases.forEach(canvas => {
+                const parent = canvas.parentElement;
+                const note = document.createElement('p');
+                note.style.cssText = 'text-align: center; color: #666; font-style: italic; padding: 20px;';
+                note.textContent = '[Chart available in digital version]';
+                parent.replaceChild(note, canvas);
+            });
+            
+            const printWindow = window.open('', '', 'height=800,width=900');
+            printWindow.document.write('<html><head><title>Student Report</title>');
+            printWindow.document.write(`
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    @media print {
+                        body { padding: 0; }
+                        @page { margin: 1cm; }
+                    }
+                </style>
+            `);
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(content.innerHTML);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+        
+        function downloadReportPDF() {
+            if (!currentReportData) {
+                showToast('No report data available', 'error');
+                return;
+            }
+            
+            showToast('Generating PDF... Please wait', 'info');
+            
+            const element = document.getElementById('reportContent');
+            
+            // PDF options
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `${currentReportData.type === 'class' ? 'Class' : currentReportData.student.name}_Report_${new Date().toISOString().slice(0,10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    letterRendering: true
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait' 
+                }
+            };
+            
+            // Generate PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                showToast('PDF downloaded successfully!', 'success');
+            }).catch((error) => {
+                console.error('PDF generation error:', error);
+                showToast('Error generating PDF. Try print instead.', 'error');
+            });
+        }
+        
+        function sendReportViaWhatsApp() {
+            const studentId = document.getElementById('whatsappStudent').value;
+            const reportType = document.getElementById('whatsappReportType').value;
+            
+            if (!studentId) {
+                showToast('Please select a student', 'error');
+                return;
+            }
+            
+            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
+            const student = students.find(s => s.id === studentId);
+            
+            if (!student) {
+                showToast('Student not found', 'error');
+                return;
+            }
+            
+            const parentPhone = student.parentPhone || student.phone;
+            if (!parentPhone) {
+                showToast('No phone number available for this student', 'error');
+                return;
+            }
+            
+            const now = new Date();
+            const period = reportType === 'monthly' ? 
+                { year: now.getFullYear(), month: now.getMonth() + 1 } :
+                { year: now.getFullYear() };
+            
+            const report = generateStudentReport(student, reportType, period);
+            
+            const message = `*ज्ञानसिंधू क्लासेस - ${report.title}*%0A%0A` +
+                `*Student:* ${student.name}%0A` +
+                `*Class:* ${student.class}%0A` +
+                `*Period:* ${report.period}%0A%0A` +
+                `*📊 Attendance Summary*%0A` +
+                `Present: ${report.attendance.present}/${report.attendance.total} days%0A` +
+                `Percentage: *${report.attendance.percentage}%*%0A%0A` +
+                `*📚 Academic Performance*%0A` +
+                `Total Marks: ${report.overall.totalMarks}%0A` +
+                `Obtained: ${report.overall.obtainedMarks}%0A` +
+                `Overall: *${report.overall.percentage}%*%0A%0A` +
+                `*💬 Remarks*%0A` +
+                `${getPerformanceRemark(report.overall.percentage, report.attendance.percentage)}%0A%0A` +
+                `_For detailed report with charts, please visit the parent portal._`;
+            
+            const whatsappUrl = `https://wa.me/91${parentPhone}?text=${message}`;
+            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+            showToast('WhatsApp opened with report summary', 'success');
+        }
                         </tbody>
                     </table>
                     
