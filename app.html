@@ -1858,12 +1858,21 @@
         // ============================================
         
         function showLoading() {
-            document.getElementById('loadingOverlay').classList.remove('hidden');
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.remove('hidden');
         }
         
         function hideLoading() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.add('hidden');
         }
+        
+        // Ensure overlays are hidden on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            hideLoading();
+            const backdrop = document.querySelector('.mobile-menu-backdrop');
+            if (backdrop) backdrop.classList.remove('active');
+        });
         
         // ============================================
         // EMPTY STATE HELPER
