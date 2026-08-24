@@ -5103,7 +5103,7 @@
                     <div style="font-family: Arial, sans-serif;">
                         <div style="text-center margin-bottom: 24px;">
                             <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-                                <img src="Logo.jpg" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
+                                <img src="Logo.jpg" alt="Logo" width="80" height="80" loading="lazy" decoding="async" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
                                 <div>
                                     <h1 style="font-size: 28px; font-weight: bold; color: #f5c518; margin: 0;">ज्ञानसिंधू क्लासेस</h1>
                                     <p style="margin: 4px 0; color: #666;">Dnyansindhu Classes, Neral</p>
@@ -5186,7 +5186,7 @@
                     <div style="font-family: Arial, sans-serif;">
                         <div style="text-center margin-bottom: 24px;">
                             <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-                                <img src="Logo.jpg" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
+                                <img src="Logo.jpg" alt="Logo" width="80" height="80" loading="lazy" decoding="async" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
                                 <div>
                                     <h1 style="font-size: 28px; font-weight: bold; color: #f5c518; margin: 0;">ज्ञानसिंधू क्लासेस</h1>
                                     <p style="margin: 4px 0; color: #666;">Dnyansindhu Classes, Neral</p>
@@ -5602,189 +5602,6 @@
             const whatsappUrl = `https://wa.me/91${parentPhone}?text=${message}`;
             window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
             showToast('WhatsApp opened with report summary', 'success');
-        }
-                        </tbody>
-                    </table>
-                    
-                    <div class="mt-6 text-sm text-center">
-                        <p>Generated on: ${new Date().toLocaleDateString()}</p>
-                    </div>
-                `;
-            } else {
-                // Individual student report
-                content.innerHTML = `
-                    <div class="text-center mb-6">
-                        <img src="Logo.jpg" alt="Logo" width="80" height="80" loading="lazy" decoding="async" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 10px;">
-                        <h1 class="text-2xl font-bold" style="color: #f5c518;">ज्ञानसिंधू क्लासेस</h1>
-                        <p class="text-sm">नेरळ</p>
-                        <h2 class="text-xl font-bold mt-4">${report.title}</h2>
-                        <p class="text-sm">${report.period}</p>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <h3 class="font-bold mb-2" style="color: #f5c518;">Student Information</h3>
-                        <table class="w-full">
-                            <tr>
-                                <td><strong>Name:</strong></td>
-                                <td>${report.student.name}</td>
-                                <td><strong>Class:</strong></td>
-                                <td>${report.student.class}</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Father's Name:</strong></td>
-                                <td>${report.student.fatherName}</td>
-                                <td><strong>Phone:</strong></td>
-                                <td>${report.student.phone}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <h3 class="font-bold mb-2" style="color: #f5c518;">Attendance Summary</h3>
-                        <table class="w-full" style="border: 1px solid #ccc;">
-                            <tr>
-                                <td style="border: 1px solid #ccc; padding: 8px;"><strong>Total Days:</strong></td>
-                                <td style="border: 1px solid #ccc; padding: 8px;">${report.attendance.total}</td>
-                                <td style="border: 1px solid #ccc; padding: 8px;"><strong>Present:</strong></td>
-                                <td style="border: 1px solid #ccc; padding: 8px;">${report.attendance.present}</td>
-                            </tr>
-                            <tr>
-                                <td style="border: 1px solid #ccc; padding: 8px;"><strong>Absent:</strong></td>
-                                <td style="border: 1px solid #ccc; padding: 8px;">${report.attendance.absent}</td>
-                                <td style="border: 1px solid #ccc; padding: 8px;"><strong>Attendance %:</strong></td>
-                                <td style="border: 1px solid #ccc; padding: 8px;"><strong>${report.attendance.percentage}%</strong></td>
-                            </tr>
-                        </table>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <h3 class="font-bold mb-2" style="color: #f5c518;">Academic Performance</h3>
-                        ${report.marks.length > 0 ? `
-                            <table class="w-full" style="border: 1px solid #ccc;">
-                                <thead style="background: #f5c518; color: #000;">
-                                    <tr>
-                                        <th style="border: 1px solid #ccc; padding: 8px;">Test/Exam</th>
-                                        <th style="border: 1px solid #ccc; padding: 8px;">Subject</th>
-                                        <th style="border: 1px solid #ccc; padding: 8px;">Total</th>
-                                        <th style="border: 1px solid #ccc; padding: 8px;">Obtained</th>
-                                        <th style="border: 1px solid #ccc; padding: 8px;">%</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${report.marks.map(m => `
-                                        <tr>
-                                            <td style="border: 1px solid #ccc; padding: 8px;">${m.test}</td>
-                                            <td style="border: 1px solid #ccc; padding: 8px;">${m.subject}</td>
-                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${m.total}</td>
-                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${m.obtained}</td>
-                                            <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${m.percentage}%</td>
-                                        </tr>
-                                    `).join('')}
-                                    <tr style="background: #f5f5f5; font-weight: bold;">
-                                        <td colspan="2" style="border: 1px solid #ccc; padding: 8px;">Overall</td>
-                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${report.overall.totalMarks}</td>
-                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${report.overall.obtainedMarks}</td>
-                                        <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${report.overall.percentage}%</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        ` : '<p class="text-gray-600">No marks data available for this period.</p>'}
-                    </div>
-                    
-                    <div class="mb-6">
-                        <h3 class="font-bold mb-2" style="color: #f5c518;">Remarks</h3>
-                        <p>${getPerformanceRemark(report.overall.percentage, report.attendance.percentage)}</p>
-                    </div>
-                    
-                    <div class="mt-8 text-sm">
-                        <p>Generated on: ${new Date().toLocaleDateString()}</p>
-                        <p class="mt-4">______________________</p>
-                        <p>Authorized Signature</p>
-                    </div>
-                `;
-            }
-            
-            preview.classList.remove('hidden');
-            preview.scrollIntoView({ behavior: 'smooth' });
-        }
-        
-        function getPerformanceRemark(academicPercentage, attendancePercentage) {
-            const academic = parseFloat(academicPercentage);
-            const attendance = parseFloat(attendancePercentage);
-            
-            if (academic >= 90 && attendance >= 90) {
-                return "Excellent performance! Keep up the great work.";
-            } else if (academic >= 75 && attendance >= 80) {
-                return "Good performance. Continue working hard.";
-            } else if (academic >= 60 && attendance >= 70) {
-                return "Satisfactory performance. There is room for improvement.";
-            } else if (attendance < 75) {
-                return "Attendance needs improvement. Regular attendance is crucial for better performance.";
-            } else {
-                return "Needs significant improvement. Extra attention and practice required.";
-            }
-        }
-        
-        function closeReportPreview() {
-            document.getElementById('reportPreview').classList.add('hidden');
-        }
-        
-        function printReport() {
-            const content = document.getElementById('reportContent').innerHTML;
-            const printWindow = window.open('', '', 'height=600,width=800');
-            printWindow.document.write('<html><head><title>Student Report</title>');
-            printWindow.document.write('<style>body{font-family: Arial, sans-serif; padding: 20px;}</style>');
-            printWindow.document.write('</head><body>');
-            printWindow.document.write(content);
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            printWindow.print();
-        }
-        
-        function downloadReportPDF() {
-            showToast('PDF download feature requires a PDF library. Printing is available now.', 'error');
-            // In a real implementation, you would use a library like jsPDF or html2pdf.js
-            // For now, suggest using print and "Save as PDF"
-            printReport();
-        }
-        
-        function sendReportViaWhatsApp() {
-            const studentId = document.getElementById('whatsappStudent').value;
-            const reportType = document.getElementById('whatsappReportType').value;
-            
-            if (!studentId) {
-                showToast('Please select a student', 'error');
-                return;
-            }
-            
-            const student = JSON.parse(localStorage.getItem('gs_students')).find(s => s.id === studentId);
-            
-            if (!student.whatsapp && !student.phone) {
-                showToast('No WhatsApp number available for this student', 'error');
-                return;
-            }
-            
-            const phone = student.whatsapp || student.phone;
-            const now = new Date();
-            const period = reportType === 'monthly' ? 
-                { year: now.getFullYear(), month: now.getMonth() + 1 } :
-                { year: now.getFullYear() };
-            
-            const report = generateStudentReport(student, reportType, period);
-            
-            const message = `*ज्ञानसिंधू क्लासेस - ${report.title}*%0A%0A` +
-                `Student: ${student.name}%0A` +
-                `Class: ${student.class}%0A` +
-                `Period: ${report.period}%0A%0A` +
-                `*Attendance*%0A` +
-                `Present: ${report.attendance.present}/${report.attendance.total} (${report.attendance.percentage}%)%0A%0A` +
-                `*Academic Performance*%0A` +
-                `Overall: ${report.overall.obtainedMarks}/${report.overall.totalMarks} (${report.overall.percentage}%)%0A%0A` +
-                `*Remark:* ${getPerformanceRemark(report.overall.percentage, report.attendance.percentage)}%0A%0A` +
-                `For detailed report, please visit: https://akshayyborade.github.io/gyanasindhu-classes/`;
-            
-            window.open(`https://wa.me/91${phone}?text=${message}`, '_blank', 'noopener,noreferrer');
-            showToast('WhatsApp opened with report summary');
         }
         
         // ============================================
