@@ -1847,9 +1847,10 @@
             return attendance.some(a => a.id !== excludeId && a.date === date && a.class === classValue);
         }
         
-        function checkDuplicateMarks(testName, className, subject) {
+        function checkDuplicateMarks(testName, className, subject, excludeId = '') {
             const marks = JSON.parse(localStorage.getItem('gs_marks'));
             return marks.some(m => 
+                m.id !== excludeId &&
                 m.test.toLowerCase() === testName.toLowerCase() && 
                 m.class === className && 
                 m.subject.toLowerCase() === subject.toLowerCase()
@@ -4467,6 +4468,8 @@
         // ============================================
         // ADMIN: MARKS
         // ============================================
+
+        let editingMarksId = null;
         
         function renderAdminMarks() {
             document.getElementById('pageTitle').textContent = 'Marks Management';
@@ -4474,7 +4477,12 @@
             const contentArea = document.getElementById('contentArea');
             contentArea.innerHTML = `
                 <div class="glass-card p-6 mb-6">
-                    <h3 class="text-xl font-bold mb-4 gold-accent">Enter Marks</h3>
+                    <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                        <h3 id="marksFormTitle" class="text-xl font-bold gold-accent">Enter Marks</h3>
+                        <button id="cancelMarksEditBtn" onclick="cancelMarksEdit()" class="btn-gold hidden" style="background: #6b7280;">
+                            Cancel Edit
+                        </button>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label>Class *</label>
@@ -4525,7 +4533,7 @@
             loadPastMarks();
         }
         
-        function loadMarksGrid() {
+        function loadMarksGrid(existingRecord = null) {
             const selectedClass = document.getElementById('marksClass').value;
             if (!selectedClass) {
                 showToast('Please select a class', 'error');
@@ -4533,6 +4541,10 @@
             }
             
             const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            if (students.length === 0) {
+                document.getElementById('marksGrid').innerHTML = renderEmptyState('user-graduate', 'No students found for this class.');
+                return;
+            }
             
             const grid = document.getElementById('marksGrid');
             grid.innerHTML = `
@@ -4552,6 +4564,7 @@
                                     <td>${s.name}</td>
                                     <td>
                                         <input type="number" id="marks_${s.id}" min="0" max="${document.getElementById('totalMarks').value || 100}" 
+                                            value="${existingRecord?.records?.find(r => r.studentId === s.id)?.marks ?? ''}"
                                             class="w-24 bg-gray-800 border border-gray-600 rounded px-2 py-1">
                                     </td>
                                 </tr>
@@ -4559,7 +4572,7 @@
                         </tbody>
                     </table>
                 </div>
-                <button onclick="saveMarks()" class="btn-gold mt-4">Save Marks</button>
+                <button onclick="saveMarks()" class="btn-gold mt-4">${editingMarksId ? 'Update Marks' : 'Save Marks'}</button>
             `;
         }
         
@@ -4570,18 +4583,22 @@
             const total = parseInt(document.getElementById('totalMarks').value);
             const date = document.getElementById('marksDate').value;
             
-            if (!testName || !subject || !total) {
+            if (!selectedClass || !testName || !subject || !total || !date) {
                 showToast('Please fill all fields', 'error');
                 return;
             }
             
             // Check for duplicate marks
-            if (checkDuplicateMarks(testName, selectedClass, subject)) {
+            if (checkDuplicateMarks(testName, selectedClass, subject, editingMarksId || '')) {
                 showToast('Marks for this test, class, and subject already exist', 'error');
                 return;
             }
             
             const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            if (students.length === 0) {
+                showToast('No students found for this class', 'error');
+                return;
+            }
             
             const records = students.map(s => ({
                 studentId: s.id,
@@ -4590,19 +4607,32 @@
             
             showLoading();
             
+            const allMarks = JSON.parse(localStorage.getItem('gs_marks'));
+            const existingRecord = editingMarksId ? allMarks.find(m => m.id === editingMarksId) : null;
             const marksRecord = {
-                id: uuid(),
+                id: editingMarksId || uuid(),
                 test: testName,
                 subject,
                 class: selectedClass,
                 total,
                 date,
                 records,
-                savedBy: currentSession.role === 'admin' ? 'admin' : currentSession.id
+                savedBy: existingRecord?.savedBy || (currentSession.role === 'admin' ? 'admin' : currentSession.id),
+                updatedAt: new Date().toISOString()
             };
             
-            const allMarks = JSON.parse(localStorage.getItem('gs_marks'));
-            allMarks.push(marksRecord);
+            if (editingMarksId) {
+                const index = allMarks.findIndex(m => m.id === editingMarksId);
+                if (index === -1) {
+                    hideLoading();
+                    showToast('Marks record not found', 'error');
+                    return;
+                }
+                allMarks[index] = { ...allMarks[index], ...marksRecord };
+            } else {
+                allMarks.push(marksRecord);
+            }
+
             const saved = await saveMarksData(allMarks);
             if (!saved) {
                 hideLoading();
@@ -4611,8 +4641,9 @@
             }
             
             hideLoading();
-            logActivity(`Added marks for ${testName} - ${subject} (Class ${selectedClass})`);
-            showToast('Marks saved successfully');
+            logActivity(`${editingMarksId ? 'Updated' : 'Added'} marks for ${testName} - ${subject} (Class ${selectedClass})`);
+            showToast(editingMarksId ? 'Marks updated successfully' : 'Marks saved successfully');
+            editingMarksId = null;
             renderAdminMarks();
         }
         
@@ -4635,6 +4666,7 @@
                                 <th>Subject</th>
                                 <th>Class</th>
                                 <th>Total Marks</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -4645,12 +4677,42 @@
                                     <td>${m.subject}</td>
                                     <td>${m.class}</td>
                                     <td>${m.total}</td>
+                                    <td>
+                                        <button onclick='editMarksRecord("${m.id}")' class="text-yellow-400 hover:text-yellow-300">
+                                            <i class="fas fa-edit mr-1"></i>Edit
+                                        </button>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
+        }
+
+        function editMarksRecord(id) {
+            const allMarks = JSON.parse(localStorage.getItem('gs_marks') || '[]');
+            const record = allMarks.find(m => m.id === id);
+            if (!record) {
+                showToast('Marks record not found', 'error');
+                return;
+            }
+
+            editingMarksId = id;
+            document.getElementById('marksFormTitle').textContent = 'Edit Saved Marks';
+            document.getElementById('cancelMarksEditBtn').classList.remove('hidden');
+            document.getElementById('marksClass').value = record.class;
+            document.getElementById('testName').value = record.test;
+            document.getElementById('testSubject').value = record.subject;
+            document.getElementById('totalMarks').value = record.total;
+            document.getElementById('marksDate').value = record.date;
+            loadMarksGrid(record);
+            document.getElementById('marksFormTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function cancelMarksEdit() {
+            editingMarksId = null;
+            renderAdminMarks();
         }
         
         // ============================================
@@ -4667,7 +4729,7 @@
                 <div class="glass-card p-6 mb-6">
                     <h3 class="text-xl font-bold mb-4 gold-accent">Generate Student Reports</h3>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                         <!-- Monthly Report -->
                         <div class="glass-card p-4">
                             <h4 class="font-bold mb-3 flex items-center">
@@ -4761,35 +4823,6 @@
                             </div>
                         </div>
                         
-                        <!-- Send via WhatsApp -->
-                        <div class="glass-card p-4">
-                            <h4 class="font-bold mb-3 flex items-center">
-                                <i class="fas fa-paper-plane gold-accent mr-2"></i>
-                                Send Report via WhatsApp
-                            </h4>
-                            <p class="text-sm text-gray-300 mb-4">
-                                Generate report and send directly to parent's WhatsApp number.
-                            </p>
-                            
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-sm mb-1">Select Student</label>
-                                    <select id="whatsappStudent" class="w-full">
-                                        <option value="">Select Student</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm mb-1">Report Type</label>
-                                    <select id="whatsappReportType" class="w-full">
-                                        <option value="monthly">Monthly Report</option>
-                                        <option value="yearly">Yearly Report</option>
-                                    </select>
-                                </div>
-                                <button onclick="sendReportViaWhatsApp()" class="btn-gold w-full">
-                                    <i class="fab fa-whatsapp mr-2"></i>Send via WhatsApp
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 
@@ -4809,7 +4842,7 @@
                             </button>
                         </div>
                     </div>
-                    <div id="reportContent" class="bg-white text-black p-8 rounded"></div>
+                    <div id="reportContent" class="bg-white text-black p-4 sm:p-6 lg:p-8 rounded overflow-x-auto"></div>
                 </div>
             `;
             
@@ -4821,7 +4854,6 @@
             
             document.getElementById('monthlyStudent').innerHTML += studentOptions;
             document.getElementById('yearlyStudent').innerHTML += studentOptions;
-            document.getElementById('whatsappStudent').innerHTML += studentOptions;
             
             // Set current month as default
             const now = new Date();
@@ -4899,6 +4931,17 @@
             currentReportData = report;
             displayReport(report);
         }
+
+        function formatReportDate(dateValue) {
+            if (!dateValue) return '-';
+            const date = new Date(dateValue);
+            if (Number.isNaN(date.getTime())) return dateValue;
+            return date.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
         
         function generateStudentReport(student, type, period) {
             const attendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
@@ -4967,6 +5010,7 @@
                 subjectMap[m.subject].obtained += parseInt(studentMark.marks);
                 subjectMap[m.subject].tests.push({
                     test: m.test,
+                    date: m.date,
                     total: m.total,
                     obtained: parseInt(studentMark.marks),
                     percentage: ((parseInt(studentMark.marks) / m.total) * 100).toFixed(2)
@@ -5041,9 +5085,10 @@
                 
                 filteredMarks.forEach(m => {
                     const studentMark = m.records.find(r => r.studentId === student.id);
-                    if (studentMark) {
+                    if (studentMark && studentMark.marks !== null && studentMark.marks !== undefined &&
+                        studentMark.marks !== '' && studentMark.marks !== 'AB' && studentMark.marks !== 'Absent') {
                         totalMarks += m.total;
-                        obtainedMarks += studentMark.marks;
+                        obtainedMarks += parseInt(studentMark.marks) || 0;
                     }
                 });
                 
@@ -5082,6 +5127,12 @@
                 title: `Class ${classValue} Progress Report`,
                 period: `${monthNames[monthNum - 1]} ${year}`,
                 class: classValue,
+                exams: filteredMarks.map(m => ({
+                    test: m.test,
+                    subject: m.subject,
+                    date: m.date,
+                    total: m.total
+                })),
                 students: studentStats,
                 totalStudents,
                 statistics: {
@@ -5138,6 +5189,32 @@
                         <div style="margin-bottom: 24px; text-align: center;">
                             <h3 style="color: #f5c518; margin-bottom: 12px;">Performance Distribution</h3>
                             <canvas id="classPerformanceChart" width="400" height="200"></canvas>
+                        </div>
+
+                        <div style="margin-bottom: 24px;">
+                            <h3 style="color: #f5c518; margin-bottom: 12px;">Exam Dates</h3>
+                            ${report.exams.length > 0 ? `
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <thead>
+                                        <tr style="background: #e5e5e5;">
+                                            <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Date</th>
+                                            <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Test</th>
+                                            <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Subject</th>
+                                            <th style="border: 1px solid #ccc; padding: 8px; text-align: center;">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${report.exams.map(exam => `
+                                            <tr>
+                                                <td style="border: 1px solid #ccc; padding: 8px;">${formatReportDate(exam.date)}</td>
+                                                <td style="border: 1px solid #ccc; padding: 8px;">${exam.test}</td>
+                                                <td style="border: 1px solid #ccc; padding: 8px;">${exam.subject}</td>
+                                                <td style="border: 1px solid #ccc; padding: 8px; text-align: center;">${exam.total}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            ` : '<p style="color: #999; padding: 16px; background: #f9f9f9; border-radius: 8px;">No exams found for this period.</p>'}
                         </div>
                         
                         <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
@@ -5261,6 +5338,7 @@
                                             <thead>
                                                 <tr style="background: #e5e5e5;">
                                                     <th style="padding: 6px; text-align: left;">Test</th>
+                                                    <th style="padding: 6px; text-align: left;">Exam Date</th>
                                                     <th style="padding: 6px; text-align: center;">Total</th>
                                                     <th style="padding: 6px; text-align: center;">Obtained</th>
                                                     <th style="padding: 6px; text-align: center;">%</th>
@@ -5270,13 +5348,14 @@
                                                 ${subject.tests.map(test => `
                                                     <tr>
                                                         <td style="padding: 6px;">${test.test}</td>
+                                                        <td style="padding: 6px;">${formatReportDate(test.date)}</td>
                                                         <td style="padding: 6px; text-align: center;">${test.total}</td>
                                                         <td style="padding: 6px; text-align: center;">${test.obtained}</td>
                                                         <td style="padding: 6px; text-align: center;">${test.percentage}%</td>
                                                     </tr>
                                                 `).join('')}
                                                 <tr style="background: #e5e5e5; font-weight: bold;">
-                                                    <td style="padding: 6px;">Subject Total</td>
+                                                    <td style="padding: 6px;" colspan="2">Subject Total</td>
                                                     <td style="padding: 6px; text-align: center;">${subject.total}</td>
                                                     <td style="padding: 6px; text-align: center;">${subject.obtained}</td>
                                                     <td style="padding: 6px; text-align: center;">${subject.percentage}%</td>
@@ -5552,56 +5631,6 @@
                 console.error('PDF generation error:', error);
                 showToast('Error generating PDF. Try print instead.', 'error');
             });
-        }
-        
-        function sendReportViaWhatsApp() {
-            const studentId = document.getElementById('whatsappStudent').value;
-            const reportType = document.getElementById('whatsappReportType').value;
-            
-            if (!studentId) {
-                showToast('Please select a student', 'error');
-                return;
-            }
-            
-            const students = JSON.parse(localStorage.getItem('gs_students') || '[]');
-            const student = students.find(s => s.id === studentId);
-            
-            if (!student) {
-                showToast('Student not found', 'error');
-                return;
-            }
-            
-            const parentPhone = student.parentPhone || student.phone;
-            if (!parentPhone) {
-                showToast('No phone number available for this student', 'error');
-                return;
-            }
-            
-            const now = new Date();
-            const period = reportType === 'monthly' ? 
-                { year: now.getFullYear(), month: now.getMonth() + 1 } :
-                { year: now.getFullYear() };
-            
-            const report = generateStudentReport(student, reportType, period);
-            
-            const message = `*ज्ञानसिंधू क्लासेस - ${report.title}*%0A%0A` +
-                `*Student:* ${student.name}%0A` +
-                `*Class:* ${student.class}%0A` +
-                `*Period:* ${report.period}%0A%0A` +
-                `*📊 Attendance Summary*%0A` +
-                `Present: ${report.attendance.present}/${report.attendance.total} days%0A` +
-                `Percentage: *${report.attendance.percentage}%*%0A%0A` +
-                `*📚 Academic Performance*%0A` +
-                `Total Marks: ${report.overall.totalMarks}%0A` +
-                `Obtained: ${report.overall.obtainedMarks}%0A` +
-                `Overall: *${report.overall.percentage}%*%0A%0A` +
-                `*💬 Remarks*%0A` +
-                `${getPerformanceRemark(report.overall.percentage, report.attendance.percentage)}%0A%0A` +
-                `_For detailed report with charts, please visit the parent portal._`;
-            
-            const whatsappUrl = `https://wa.me/91${parentPhone}?text=${message}`;
-            window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-            showToast('WhatsApp opened with report summary', 'success');
         }
         
         // ============================================
