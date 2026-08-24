@@ -1856,6 +1856,73 @@
                 m.subject.toLowerCase() === subject.toLowerCase()
             );
         }
+
+        function getClassOptionsHtml() {
+            return `
+                <option value="">Select Class</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11 General</option>
+                <option value="11-science">11 Science</option>
+                <option value="11-commerce">11 Commerce</option>
+                <option value="11-arts">11 Arts</option>
+                <option value="12">12 General</option>
+                <option value="12-science">12 Science</option>
+                <option value="12-commerce">12 Commerce</option>
+                <option value="12-arts">12 Arts</option>
+            `;
+        }
+
+        function getExamMarkValue(studentId) {
+            const status = document.getElementById(`marksStatus_${studentId}`)?.value || 'present';
+            if (status === 'absent') return 'Absent';
+            if (status === 'na') return null;
+
+            const input = document.getElementById(`marks_${studentId}`);
+            const rawValue = input ? input.value.trim() : '';
+            if (rawValue === '') return null;
+            const marks = parseInt(rawValue, 10);
+            return Number.isNaN(marks) ? null : marks;
+        }
+
+        function handleMarksStatusChange(studentId) {
+            const status = document.getElementById(`marksStatus_${studentId}`)?.value || 'present';
+            const input = document.getElementById(`marks_${studentId}`);
+            if (!input) return;
+
+            const isPresent = status === 'present';
+            input.disabled = !isPresent;
+            input.required = isPresent;
+            if (!isPresent) input.value = '';
+        }
+
+        function setMarksStatusForAll(status) {
+            document.querySelectorAll('[id^="marksStatus_"]').forEach(select => {
+                if (select.disabled) return;
+                select.value = status;
+                handleMarksStatusChange(select.id.replace('marksStatus_', ''));
+            });
+        }
+
+        function getBaseClassValue(classValue) {
+            return String(classValue || '').split('-')[0];
+        }
+
+        function getAttendanceForMarks(date, classValue) {
+            const attendance = JSON.parse(localStorage.getItem('gs_attendance') || '[]');
+            const sameDate = attendance.filter(record => record.date === date);
+            return sameDate.find(record => record.class === classValue) ||
+                sameDate.find(record => getBaseClassValue(record.class) === getBaseClassValue(classValue)) ||
+                null;
+        }
         
         function showValidationError(message) {
             showToast(message, 'error');
@@ -4487,19 +4554,7 @@
                         <div>
                             <label>Class *</label>
                             <select id="marksClass">
-                                <option value="">Select Class</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                                <option value="8">8</option>
-                                <option value="9">9</option>
-                                <option value="10">10</option>
-                                <option value="11">11</option>
-                                <option value="12">12</option>
+                                ${getClassOptionsHtml()}
                             </select>
                         </div>
                         <div>
@@ -4535,8 +4590,13 @@
         
         function loadMarksGrid(existingRecord = null) {
             const selectedClass = document.getElementById('marksClass').value;
+            const marksDate = document.getElementById('marksDate').value;
             if (!selectedClass) {
                 showToast('Please select a class', 'error');
+                return;
+            }
+            if (!marksDate) {
+                showToast('Please select exam date', 'error');
                 return;
             }
             
@@ -4545,35 +4605,65 @@
                 document.getElementById('marksGrid').innerHTML = renderEmptyState('user-graduate', 'No students found for this class.');
                 return;
             }
+
+            const attendanceRecord = getAttendanceForMarks(marksDate, selectedClass);
+            const attendanceByStudent = new Map((attendanceRecord?.records || []).map(record => [record.studentId, record]));
             
             const grid = document.getElementById('marksGrid');
             grid.innerHTML = `
+                ${attendanceRecord ? '<div class="mb-3 p-3 rounded bg-blue-900 bg-opacity-30 text-blue-200"><i class="fas fa-calendar-check mr-2"></i>Attendance found for this date. Absent students are locked automatically.</div>' : '<div class="mb-3 p-3 rounded bg-yellow-900 bg-opacity-30 text-yellow-200"><i class="fas fa-info-circle mr-2"></i>No attendance found for this date/class. Mark absent students manually.</div>'}
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button type="button" onclick="setMarksStatusForAll('present')" class="btn-gold text-sm">All Applicable</button>
+                    <button type="button" onclick="setMarksStatusForAll('na')" class="btn-gold text-sm" style="background: #6b7280;">All Not Applicable</button>
+                    <button type="button" onclick="setMarksStatusForAll('absent')" class="btn-gold text-sm" style="background: #991b1b;">Mark All Absent</button>
+                </div>
                 <div class="overflow-x-auto">
                     <table>
                         <thead>
                             <tr>
                                 <th>Roll No.</th>
                                 <th>Name</th>
+                                <th>Exam Status</th>
                                 <th>Marks Obtained</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${students.map((s, i) => `
+                                ${(() => {
+                                    const record = existingRecord?.records?.find(r => r.studentId === s.id);
+                                    const attendance = attendanceByStudent.get(s.id);
+                                    const attendanceAbsent = attendance && attendance.present === false;
+                                    const status = attendanceAbsent ? 'absent' : (record?.marks === 'Absent' ? 'absent' : (existingRecord && record?.marks == null ? 'na' : 'present'));
+                                    const markValue = typeof record?.marks === 'number' ? record.marks : '';
+                                    return `
                                 <tr>
                                     <td>${i + 1}</td>
                                     <td>${s.name}</td>
                                     <td>
+                                        <select id="marksStatus_${s.id}" onchange='handleMarksStatusChange("${s.id}")' class="min-w-36" ${attendanceAbsent ? 'disabled' : ''}>
+                                            <option value="present" ${status === 'present' ? 'selected' : ''}>Present</option>
+                                            <option value="absent" ${status === 'absent' ? 'selected' : ''}>Absent</option>
+                                            <option value="na" ${status === 'na' ? 'selected' : ''}>Not Applicable</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        ${attendanceAbsent ? '<span class="badge badge-pending">Absent in attendance</span>' : `
                                         <input type="number" id="marks_${s.id}" min="0" max="${document.getElementById('totalMarks').value || 100}" 
-                                            value="${existingRecord?.records?.find(r => r.studentId === s.id)?.marks ?? ''}"
+                                            value="${markValue}"
                                             class="w-24 bg-gray-800 border border-gray-600 rounded px-2 py-1">
+                                        `}
                                     </td>
                                 </tr>
+                                    `;
+                                })()}
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
                 <button onclick="saveMarks()" class="btn-gold mt-4">${editingMarksId ? 'Update Marks' : 'Save Marks'}</button>
             `;
+
+            students.forEach(s => handleMarksStatusChange(s.id));
         }
         
         async function saveMarks() {
@@ -4602,8 +4692,17 @@
             
             const records = students.map(s => ({
                 studentId: s.id,
-                marks: parseInt(document.getElementById(`marks_${s.id}`).value) || 0
+                marks: getExamMarkValue(s.id)
             }));
+
+            const invalidPresentStudent = students.find(s => {
+                const status = document.getElementById(`marksStatus_${s.id}`)?.value || 'present';
+                return status === 'present' && records.find(r => r.studentId === s.id)?.marks === null;
+            });
+            if (invalidPresentStudent) {
+                showToast(`Please enter marks for ${invalidPresentStudent.name} or mark Absent/Not Applicable`, 'error');
+                return;
+            }
             
             showLoading();
             
@@ -4803,14 +4902,7 @@
                                 <div>
                                     <label class="block text-sm mb-1">Select Class</label>
                                     <select id="classReport" class="w-full">
-                                        <option value="">Select Class</option>
-                                        <option value="8">Class 8</option>
-                                        <option value="9">Class 9</option>
-                                        <option value="10">Class 10</option>
-                                        <option value="11">Class 11 (Science)</option>
-                                        <option value="11">Class 11 (Commerce)</option>
-                                        <option value="12">Class 12 (Science)</option>
-                                        <option value="12">Class 12 (Commerce)</option>
+                                        ${getClassOptionsHtml()}
                                     </select>
                                 </div>
                                 <div>
@@ -4996,34 +5088,38 @@
             
             filteredMarks.forEach(m => {
                 const studentMark = m.records.find(r => r.studentId === student.id);
-                
-                // Skip if student was absent (no record or null/undefined/empty marks)
-                if (!studentMark || studentMark.marks === null || studentMark.marks === undefined || 
-                    studentMark.marks === '' || studentMark.marks === 'AB' || studentMark.marks === 'Absent') {
-                    return; // Student was absent, skip this exam
+                if (!studentMark || studentMark.marks === null || studentMark.marks === undefined || studentMark.marks === '') {
+                    return;
                 }
-                
+
                 if (!subjectMap[m.subject]) {
                     subjectMap[m.subject] = { total: 0, obtained: 0, tests: [] };
                 }
-                subjectMap[m.subject].total += m.total;
-                subjectMap[m.subject].obtained += parseInt(studentMark.marks);
+
+                const isAbsent = studentMark.marks === 'AB' || studentMark.marks === 'Absent';
+                const obtained = isAbsent ? null : parseInt(studentMark.marks, 10);
+
                 subjectMap[m.subject].tests.push({
                     test: m.test,
                     date: m.date,
                     total: m.total,
-                    obtained: parseInt(studentMark.marks),
-                    percentage: ((parseInt(studentMark.marks) / m.total) * 100).toFixed(2)
+                    obtained: isAbsent ? 'Absent' : obtained,
+                    percentage: isAbsent ? '-' : ((obtained / m.total) * 100).toFixed(2)
                 });
-                totalMarks += m.total;
-                obtainedMarks += parseInt(studentMark.marks);
+
+                if (!isAbsent) {
+                    subjectMap[m.subject].total += m.total;
+                    subjectMap[m.subject].obtained += obtained;
+                    totalMarks += m.total;
+                    obtainedMarks += obtained;
+                }
             });
             
             const subjectData = Object.keys(subjectMap).map(subject => ({
                 subject,
                 total: subjectMap[subject].total,
                 obtained: subjectMap[subject].obtained,
-                percentage: ((subjectMap[subject].obtained / subjectMap[subject].total) * 100).toFixed(2),
+                percentage: subjectMap[subject].total > 0 ? ((subjectMap[subject].obtained / subjectMap[subject].total) * 100).toFixed(2) : '-',
                 tests: subjectMap[subject].tests
             }));
             
@@ -5143,6 +5239,30 @@
                 }
             };
         }
+
+        function getReportStyles() {
+            return `
+                <style>
+                    .report-root { font-family: Arial, sans-serif; width: 100%; max-width: 100%; overflow-x: hidden; }
+                    .report-header { text-align: center; margin-bottom: 24px; }
+                    .report-brand { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+                    .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important; gap: 12px; }
+                    .report-two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important; gap: 24px; align-items: center; }
+                    .report-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; gap: 16px; text-align: center; }
+                    .report-chart { max-width: 100%; height: auto; margin: 0 auto; display: block; }
+                    .report-table-wrap { width: 100%; overflow-x: auto; }
+                    .report-table { width: 100%; border-collapse: collapse; min-width: 560px; }
+                    .report-table.compact { min-width: 420px; }
+                    @media (max-width: 640px) {
+                        .report-root { font-size: 13px; }
+                        .report-root h1 { font-size: 22px !important; }
+                        .report-root h2 { font-size: 18px !important; }
+                        .report-root h3 { font-size: 16px !important; }
+                        .report-brand img { margin-right: 0 !important; }
+                    }
+                </style>
+            `;
+        }
         
         function displayReport(report) {
             const preview = document.getElementById('reportPreview');
@@ -5151,9 +5271,10 @@
             if (report.type === 'class') {
                 // Class report with pie chart
                 content.innerHTML = `
-                    <div style="font-family: Arial, sans-serif;">
-                        <div style="text-center margin-bottom: 24px;">
-                            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    ${getReportStyles()}
+                    <div class="report-root">
+                        <div class="report-header">
+                            <div class="report-brand">
                                 <img src="Logo.jpg" alt="Logo" width="80" height="80" loading="lazy" decoding="async" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
                                 <div>
                                     <h1 style="font-size: 28px; font-weight: bold; color: #f5c518; margin: 0;">ज्ञानसिंधू क्लासेस</h1>
@@ -5166,7 +5287,7 @@
                         
                         <div style="margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px;">
                             <h3 style="color: #f5c518; margin-bottom: 12px;">Class Statistics</h3>
-                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                            <div class="report-grid">
                                 <div>
                                     <strong>Total Students:</strong> ${report.totalStudents}
                                 </div>
@@ -5188,13 +5309,13 @@
                         <!-- Pie Chart Container -->
                         <div style="margin-bottom: 24px; text-align: center;">
                             <h3 style="color: #f5c518; margin-bottom: 12px;">Performance Distribution</h3>
-                            <canvas id="classPerformanceChart" width="400" height="200"></canvas>
+                            <canvas id="classPerformanceChart" class="report-chart" width="400" height="200"></canvas>
                         </div>
 
                         <div style="margin-bottom: 24px;">
                             <h3 style="color: #f5c518; margin-bottom: 12px;">Exam Dates</h3>
                             ${report.exams.length > 0 ? `
-                                <table style="width: 100%; border-collapse: collapse;">
+                                <div class="report-table-wrap"><table class="report-table compact">
                                     <thead>
                                         <tr style="background: #e5e5e5;">
                                             <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Date</th>
@@ -5213,11 +5334,11 @@
                                             </tr>
                                         `).join('')}
                                     </tbody>
-                                </table>
+                                </table></div>
                             ` : '<p style="color: #999; padding: 16px; background: #f9f9f9; border-radius: 8px;">No exams found for this period.</p>'}
                         </div>
                         
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 24px;">
+                        <div class="report-table-wrap"><table class="report-table" style="margin-top: 24px;">
                             <thead>
                                 <tr style="background: #f5c518; color: #000;">
                                     <th style="border: 1px solid #ccc; padding: 12px; text-align: left;">Rank</th>
@@ -5242,7 +5363,7 @@
                                     </tr>
                                 `).join('')}
                             </tbody>
-                        </table>
+                        </table></div>
                         
                         <div style="margin-top: 32px; padding-top: 16px; border-top: 2px solid #f5c518; text-align: center; color: #666; font-size: 12px;">
                             <p>Generated on: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
@@ -5260,9 +5381,10 @@
             } else {
                 // Individual student report with pie charts
                 content.innerHTML = `
-                    <div style="font-family: Arial, sans-serif;">
-                        <div style="text-center margin-bottom: 24px;">
-                            <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                    ${getReportStyles()}
+                    <div class="report-root">
+                        <div class="report-header">
+                            <div class="report-brand">
                                 <img src="Logo.jpg" alt="Logo" width="80" height="80" loading="lazy" decoding="async" style="width: 80px; height: 80px; border-radius: 50%; margin-right: 16px;">
                                 <div>
                                     <h1 style="font-size: 28px; font-weight: bold; color: #f5c518; margin: 0;">ज्ञानसिंधू क्लासेस</h1>
@@ -5275,7 +5397,7 @@
                         
                         <div style="margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px;">
                             <h3 style="color: #f5c518; margin-bottom: 12px;">Student Information</h3>
-                            <table style="width: 100%;">
+                            <div class="report-table-wrap"><table class="report-table compact">
                                 <tr>
                                     <td style="padding: 8px;"><strong>Name:</strong></td>
                                     <td style="padding: 8px;">${report.student.name}</td>
@@ -5288,18 +5410,18 @@
                                     <td style="padding: 8px;"><strong>Phone:</strong></td>
                                     <td style="padding: 8px;">${report.student.phone}</td>
                                 </tr>
-                            </table>
+                            </table></div>
                         </div>
                         
                         <!-- Attendance Pie Chart -->
                         <div style="margin-bottom: 24px;">
                             <h3 style="color: #f5c518; margin-bottom: 12px;">Attendance Summary</h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center;">
+                            <div class="report-two-col">
                                 <div>
-                                    <canvas id="attendanceChart" width="300" height="300"></canvas>
+                                    <canvas id="attendanceChart" class="report-chart" width="300" height="300"></canvas>
                                 </div>
                                 <div>
-                                    <table style="width: 100%; border-collapse: collapse;">
+                                    <div class="report-table-wrap"><table class="report-table compact">
                                         <tr>
                                             <td style="border: 1px solid #ccc; padding: 12px; background: #f9f9f9;"><strong>Total Days:</strong></td>
                                             <td style="border: 1px solid #ccc; padding: 12px;">${report.attendance.total}</td>
@@ -5316,7 +5438,7 @@
                                             <td style="border: 1px solid #ccc; padding: 12px; background: #f5c518;"><strong>Attendance %:</strong></td>
                                             <td style="border: 1px solid #ccc; padding: 12px; background: #f5c518; font-weight: bold; font-size: 18px;">${report.attendance.percentage}%</td>
                                         </tr>
-                                    </table>
+                                    </table></div>
                                 </div>
                             </div>
                         </div>
@@ -5327,14 +5449,14 @@
                             ${report.subjects.length > 0 ? `
                                 <!-- Subject-wise Performance Chart -->
                                 <div style="margin-bottom: 24px; text-align: center;">
-                                    <canvas id="subjectChart" width="400" height="200"></canvas>
+                                    <canvas id="subjectChart" class="report-chart" width="400" height="200"></canvas>
                                 </div>
                                 
                                 <!-- Subject Details -->
                                 ${report.subjects.map(subject => `
                                     <div style="margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-left: 4px solid #f5c518; border-radius: 4px;">
                                         <h4 style="margin-bottom: 8px; font-size: 16px;"><strong>${subject.subject}</strong> - ${subject.percentage}%</h4>
-                                        <table style="width: 100%; font-size: 14px;">
+                                        <div class="report-table-wrap"><table class="report-table compact" style="font-size: 14px;">
                                             <thead>
                                                 <tr style="background: #e5e5e5;">
                                                     <th style="padding: 6px; text-align: left;">Test</th>
@@ -5361,13 +5483,13 @@
                                                     <td style="padding: 6px; text-align: center;">${subject.percentage}%</td>
                                                 </tr>
                                             </tbody>
-                                        </table>
+                                        </table></div>
                                     </div>
                                 `).join('')}
                                 
                                 <!-- Overall Summary -->
                                 <div style="margin-top: 24px; padding: 16px; background: #f5c518; border-radius: 8px;">
-                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
+                                    <div class="report-summary-grid">
                                         <div>
                                             <div style="font-size: 14px; margin-bottom: 4px;">Total Marks</div>
                                             <div style="font-size: 24px; font-weight: bold;">${report.overall.totalMarks}</div>
@@ -5464,7 +5586,7 @@
                     labels: report.subjects.map(s => s.subject),
                     datasets: [{
                         label: 'Percentage',
-                        data: report.subjects.map(s => parseFloat(s.percentage)),
+                        data: report.subjects.map(s => parseFloat(s.percentage) || 0),
                         backgroundColor: colors.slice(0, report.subjects.length),
                         borderWidth: 0
                     }]
@@ -5560,19 +5682,29 @@
             document.getElementById('reportPreview').classList.add('hidden');
             currentReportData = null;
         }
+
+        function cloneReportContentWithChartImages() {
+            const source = document.getElementById('reportContent');
+            const clone = source.cloneNode(true);
+            const sourceCanvases = source.querySelectorAll('canvas');
+            const cloneCanvases = clone.querySelectorAll('canvas');
+
+            cloneCanvases.forEach((canvas, index) => {
+                const sourceCanvas = sourceCanvases[index];
+                if (!sourceCanvas) return;
+
+                const img = document.createElement('img');
+                img.src = sourceCanvas.toDataURL('image/png');
+                img.alt = canvas.getAttribute('aria-label') || 'Report chart';
+                img.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 0 auto;';
+                canvas.replaceWith(img);
+            });
+
+            return clone;
+        }
         
         function printReport() {
-            const content = document.getElementById('reportContent').cloneNode(true);
-            
-            // Remove charts for printing (they don't print well)
-            const canvases = content.querySelectorAll('canvas');
-            canvases.forEach(canvas => {
-                const parent = canvas.parentElement;
-                const note = document.createElement('p');
-                note.style.cssText = 'text-align: center; color: #666; font-style: italic; padding: 20px;';
-                note.textContent = '[Chart available in digital version]';
-                parent.replaceChild(note, canvas);
-            });
+            const content = cloneReportContentWithChartImages();
             
             const printWindow = window.open('', '', 'height=800,width=900');
             printWindow.document.write('<html><head><title>Student Report</title>');
@@ -5604,7 +5736,11 @@
             
             showToast('Generating PDF... Please wait', 'info');
             
-            const element = document.getElementById('reportContent');
+            const element = cloneReportContentWithChartImages();
+            const exportContainer = document.createElement('div');
+            exportContainer.style.cssText = 'position: fixed; left: -10000px; top: 0; width: 794px; background: white;';
+            exportContainer.appendChild(element);
+            document.body.appendChild(exportContainer);
             
             // PDF options
             const opt = {
@@ -5626,8 +5762,10 @@
             
             // Generate PDF
             html2pdf().set(opt).from(element).save().then(() => {
+                exportContainer.remove();
                 showToast('PDF downloaded successfully!', 'success');
             }).catch((error) => {
+                exportContainer.remove();
                 console.error('PDF generation error:', error);
                 showToast('Error generating PDF. Try print instead.', 'error');
             });
@@ -6300,41 +6438,76 @@
         
         function loadTeacherMarksGrid() {
             const selectedClass = document.getElementById('teacherMarksClass').value;
+            const marksDate = document.getElementById('teacherMarksDate').value;
             if (!selectedClass) {
                 showToast('Please select a class', 'error');
                 return;
             }
+            if (!marksDate) {
+                showToast('Please select exam date', 'error');
+                return;
+            }
             
             const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            if (students.length === 0) {
+                document.getElementById('teacherMarksGrid').innerHTML = renderEmptyState('user-graduate', 'No students found for this class.');
+                return;
+            }
             const totalMarks = document.getElementById('teacherTotalMarks').value;
+            const attendanceRecord = getAttendanceForMarks(marksDate, selectedClass);
+            const attendanceByStudent = new Map((attendanceRecord?.records || []).map(record => [record.studentId, record]));
             
             const grid = document.getElementById('teacherMarksGrid');
             grid.innerHTML = `
+                ${attendanceRecord ? '<div class="mb-3 p-3 rounded bg-blue-900 bg-opacity-30 text-blue-200"><i class="fas fa-calendar-check mr-2"></i>Attendance found for this date. Absent students are locked automatically.</div>' : '<div class="mb-3 p-3 rounded bg-yellow-900 bg-opacity-30 text-yellow-200"><i class="fas fa-info-circle mr-2"></i>No attendance found for this date/class. Mark absent students manually.</div>'}
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button type="button" onclick="setMarksStatusForAll('present')" class="btn-gold text-sm">All Applicable</button>
+                    <button type="button" onclick="setMarksStatusForAll('na')" class="btn-gold text-sm" style="background: #6b7280;">All Not Applicable</button>
+                    <button type="button" onclick="setMarksStatusForAll('absent')" class="btn-gold text-sm" style="background: #991b1b;">Mark All Absent</button>
+                </div>
                 <div class="overflow-x-auto">
                     <table>
                         <thead>
                             <tr>
                                 <th>Roll No.</th>
                                 <th>Name</th>
+                                <th>Exam Status</th>
                                 <th>Marks Obtained</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${students.map((s, i) => `
+                                ${(() => {
+                                    const attendance = attendanceByStudent.get(s.id);
+                                    const attendanceAbsent = attendance && attendance.present === false;
+                                    return `
                                 <tr>
                                     <td>${i + 1}</td>
                                     <td>${s.name}</td>
                                     <td>
+                                        <select id="marksStatus_${s.id}" onchange='handleMarksStatusChange("${s.id}")' class="min-w-36" ${attendanceAbsent ? 'disabled' : ''}>
+                                            <option value="present" ${attendanceAbsent ? '' : 'selected'}>Present</option>
+                                            <option value="absent" ${attendanceAbsent ? 'selected' : ''}>Absent</option>
+                                            <option value="na">Not Applicable</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        ${attendanceAbsent ? '<span class="badge badge-pending">Absent in attendance</span>' : `
                                         <input type="number" id="marks_${s.id}" min="0" max="${totalMarks || 100}" 
                                             class="w-24 bg-gray-800 border border-gray-600 rounded px-2 py-1">
+                                        `}
                                     </td>
                                 </tr>
+                                    `;
+                                })()}
                             `).join('')}
                         </tbody>
                     </table>
                 </div>
                 <button onclick="saveTeacherMarks()" class="btn-gold mt-4">Save Marks</button>
             `;
+
+            students.forEach(s => handleMarksStatusChange(s.id));
         }
         
         async function saveTeacherMarks() {
@@ -6344,17 +6517,30 @@
             const total = parseInt(document.getElementById('teacherTotalMarks').value);
             const date = document.getElementById('teacherMarksDate').value;
             
-            if (!testName || !subject || !total) {
+            if (!selectedClass || !testName || !subject || !total || !date) {
                 showToast('Please fill all fields', 'error');
                 return;
             }
             
             const students = JSON.parse(localStorage.getItem('gs_students')).filter(s => s.class === selectedClass);
+            if (students.length === 0) {
+                showToast('No students found for this class', 'error');
+                return;
+            }
             
             const records = students.map(s => ({
                 studentId: s.id,
-                marks: parseInt(document.getElementById(`marks_${s.id}`).value) || 0
+                marks: getExamMarkValue(s.id)
             }));
+
+            const invalidPresentStudent = students.find(s => {
+                const status = document.getElementById(`marksStatus_${s.id}`)?.value || 'present';
+                return status === 'present' && records.find(r => r.studentId === s.id)?.marks === null;
+            });
+            if (invalidPresentStudent) {
+                showToast(`Please enter marks for ${invalidPresentStudent.name} or mark Absent/Not Applicable`, 'error');
+                return;
+            }
             
             const marksRecord = {
                 id: uuid(),
