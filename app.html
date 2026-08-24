@@ -1877,8 +1877,15 @@
         // Ensure overlays are hidden on page load
         document.addEventListener('DOMContentLoaded', function() {
             hideLoading();
-            const backdrop = document.querySelector('.mobile-menu-backdrop');
+            const backdrop = document.getElementById('mobileMenuBackdrop');
             if (backdrop) backdrop.classList.remove('active');
+            
+            // Ensure login form is clickable
+            const loginScreen = document.getElementById('loginScreen');
+            if (loginScreen) {
+                loginScreen.style.pointerEvents = 'auto';
+                loginScreen.style.zIndex = '10000';
+            }
         });
         
         // ============================================
